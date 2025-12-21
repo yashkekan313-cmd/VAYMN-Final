@@ -1,0 +1,64 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VAYMN - Stream Smarter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1F2A44;
+            --secondary: #5DA9E9;
+            --bg-off-white: #F7F9FC;
+            --card-grey: #E5EAF0;
+            --success: #4CAF50;
+            --warning: #FF9800;
+            --danger: #E53935;
+        }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--bg-off-white);
+            color: var(--primary);
+        }
+        h1, h2, h3, h4, h5, button { 
+            font-family: 'Poppins', sans-serif; 
+        }
+        .glass { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(8px); }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .bg-primary { background-color: var(--primary); }
+        .text-primary { color: var(--primary); }
+        .bg-secondary { background-color: var(--secondary); }
+        .text-secondary { color: var(--secondary); }
+        .bg-card { background-color: var(--card-grey); }
+        .bg-success-leaf { background-color: var(--success); }
+        .bg-warning-orange { background-color: var(--warning); }
+        .bg-danger-soft { background-color: var(--danger); }
+        
+        input::placeholder { color: #94A3B8; }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "vite": "https://esm.sh/vite@^7.3.0",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.89.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body class="bg-[#F7F9FC] text-[#1F2A44]">
+    <div id="root"></div>
+    <!-- Vite entry point -->
+    <script type="module" src="/index.tsx"></script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+
+{
+  "name": "VAYMN Library Management",
+  "description": "A modern library management system 'Stream smarter' featuring user and admin portals, automated book tracking, and librarian management tools.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
