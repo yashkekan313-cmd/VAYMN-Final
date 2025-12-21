@@ -45,7 +45,7 @@ export const getAiRecommendation = async (query: string, inventory: Book[]) => {
  */
 export const getBookInsight = async (title: string, author: string) => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY ?? "" });
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Write a compelling 2-sentence summary for the book "${title}" by ${author}. Highlight the main theme.`,
@@ -62,7 +62,7 @@ export const getBookInsight = async (title: string, author: string) => {
  */
 export const getBookDetails = async (title: string) => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY ?? "" });
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Generate library metadata for: "${title}".`,
