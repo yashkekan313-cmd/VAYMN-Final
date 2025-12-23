@@ -27,15 +27,10 @@ const App: React.FC = () => {
   const [targetRole, setTargetRole] = useState<UserRole>('USER');
   const [isConfirmingLogout, setIsConfirmingLogout] = useState(false);
 
-  // Safe check for API key presence
+  // Simplified and more robust key check for browser environments
   const hasApiKey = (() => {
-    try {
-      return typeof process !== 'undefined' && 
-             !!process.env?.API_KEY && 
-             process.env.API_KEY !== 'undefined';
-    } catch {
-      return false;
-    }
+    const key = process.env.API_KEY;
+    return typeof key === 'string' && key.length > 5 && key !== 'undefined';
   })();
 
   const addToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
@@ -172,13 +167,18 @@ const App: React.FC = () => {
         ))}
       </div>
 
-      {!hasApiKey && (
+      {!hasApiKey ? (
         <div className="fixed bottom-6 left-6 z-[300] bg-orange-600 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4 animate-fade-in max-w-sm">
           <i className="fas fa-key text-xl"></i>
           <div>
             <p className="font-bold text-sm">AI Configuration Missing</p>
-            <p className="text-[10px] opacity-80">Check your API_KEY environment variable.</p>
+            <p className="text-[10px] opacity-80">Add API_KEY to Vercel & click Redeploy.</p>
           </div>
+        </div>
+      ) : (
+        <div className="fixed bottom-6 left-6 z-[300] bg-[#1F2A44] text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-3 animate-fade-in border border-white/10 opacity-40 hover:opacity-100 transition-opacity">
+           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+           <span className="text-[9px] font-black uppercase tracking-widest">AI Core Online</span>
         </div>
       )}
 

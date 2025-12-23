@@ -4,19 +4,10 @@ import { Book } from "./types";
 
 /**
  * HELPER: Unified AI Client Initialization
- * Strictly follows the requirement to use process.env.API_KEY
  */
 const getAiClient = () => {
-  // Use a safe check for process.env.API_KEY
-  let apiKey: string | undefined;
-  
-  try {
-    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
-      apiKey = process.env.API_KEY;
-    }
-  } catch (e) {
-    console.warn("VAYMN: process.env access error", e);
-  }
+  // Vite replaces 'process.env.API_KEY' with the actual value at build time
+  const apiKey = process.env.API_KEY;
   
   if (!apiKey || apiKey === 'undefined' || apiKey === '') {
     throw new Error("MISSING_KEY");
@@ -49,7 +40,7 @@ export const getAiRecommendation = async (query: string, inventory: Book[]) => {
   } catch (error: any) { 
     console.error("VAYMN AI Error:", error);
     if (error.message === "MISSING_KEY") {
-      return { text: "AI features are currently unavailable. Please ensure the API_KEY environment variable is configured correctly in your deployment settings." };
+      return { text: "AI features are currently unavailable. Please ensure the API_KEY environment variable is configured in Vercel and then REDEPLOY the app." };
     }
     return { text: `Librarian is busy: ${error.status || 'Connection Error'}. Please try again shortly.` }; 
   }
@@ -120,7 +111,6 @@ export const generateBookCover = async (title: string, description: string) => {
       config: { imageConfig: { aspectRatio: "3:4" } }
     });
 
-    // Added optional chaining (?.) before .find to fix the 'Object is possibly undefined' error
     const part = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
     return part?.inlineData?.data ? `data:image/png;base64,${part.inlineData.data}` : null;
   } catch (e) { 
