@@ -3,10 +3,11 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, (process as any).cwd(), '');
+  // Load env file based on `mode` in the current working directory.
+  // Set the third parameter to '' to load all env vars regardless of the `VITE_` prefix.
+  const env = loadEnv(mode, process.cwd(), '');
   
-  // Use a fallback to ensure these strings are always replaced during build
-  const apiKey = env.VITE_API_KEY || env.API_KEY || "";
+  const apiKey = env.API_KEY || env.VITE_API_KEY || "";
 
   return {
     plugins: [react()],
@@ -14,7 +15,6 @@ export default defineConfig(({ mode }) => {
       'process.env.API_KEY': JSON.stringify(apiKey)
     },
     build: {
-      // Increase the limit to 1000kb to silence the bundle size warning
       chunkSizeWarningLimit: 1000,
       rollupOptions: {
         output: {

@@ -27,6 +27,7 @@ const App: React.FC = () => {
   const [targetRole, setTargetRole] = useState<UserRole>('USER');
   const [isConfirmingLogout, setIsConfirmingLogout] = useState(false);
 
+  // Simplified and more robust key check for browser environments
   const hasApiKey = (() => {
     const key = process.env.API_KEY;
     return typeof key === 'string' && key.length > 5 && key !== 'undefined';
@@ -44,18 +45,22 @@ const App: React.FC = () => {
     const init = async () => {
       try {
         await db.seedIfEmpty();
+        
         const [savedUser, savedBooks, savedUsers, savedAdmins] = await Promise.all([
           db.getCurrentUser().catch(() => null),
           db.getBooks().catch(() => []),
           db.getUsers().catch(() => []),
           db.getAdmins().catch(() => [])
         ]);
+
         setCurrentUser(savedUser);
         setBooks(savedBooks || []);
         setUsers(savedUsers || []);
         setAdmins(savedAdmins || []);
+
         if (savedUser) setView('DASHBOARD');
       } catch (err) {
+        console.error("Initialization failed:", err);
         addToast("Local mode active.", "info");
       } finally {
         setIsInitializing(false);
@@ -70,6 +75,7 @@ const App: React.FC = () => {
       await action();
       if (successMsg) addToast(successMsg, 'success');
     } catch (e) {
+      console.error("Sync Error:", e);
       addToast("Local update complete.", 'info');
     } finally {
       setIsSyncing(false);
@@ -168,13 +174,18 @@ const App: React.FC = () => {
         ))}
       </div>
 
-      {!hasApiKey && (
+      {!hasApiKey ? (
         <div className="fixed bottom-6 left-6 z-[300] bg-orange-600 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4 animate-fade-in max-w-sm">
           <i className="fas fa-key text-xl"></i>
           <div>
             <p className="font-bold text-sm">AI Configuration Missing</p>
             <p className="text-[10px] opacity-80">Add API_KEY to Vercel & click Redeploy.</p>
           </div>
+        </div>
+      ) : (
+        <div className="fixed bottom-6 left-6 z-[300] bg-[#1F2A44] text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-3 animate-fade-in border border-white/10 opacity-40 hover:opacity-100 transition-opacity">
+           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+           <span className="text-[9px] font-black uppercase tracking-widest">AI Core Online</span>
         </div>
       )}
 
@@ -184,11 +195,13 @@ const App: React.FC = () => {
             <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-[#5DA9E9]/10 rounded-full blur-[120px] animate-pulse"></div>
             <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-white/5 rounded-full blur-[100px] animate-pulse"></div>
           </div>
+
           <div className="relative z-10 w-full max-w-6xl px-6 py-12 flex flex-col items-center">
             <div className="text-center mb-24 animate-fade-in">
               <h1 className="text-8xl md:text-9xl font-black text-white mb-4 tracking-tighter">VAYMN</h1>
               <p className="text-[#5DA9E9] tracking-[0.6em] uppercase text-xs font-black">Stream Smarter. Library Reimagined.</p>
             </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-10 w-full max-w-4xl">
               <button 
                 onClick={() => { setTargetRole('USER'); setView('USER_LOGIN'); }} 
@@ -200,6 +213,7 @@ const App: React.FC = () => {
                 <h3 className="text-3xl font-black text-white mb-2">Student Portal</h3>
                 <p className="text-white/40 text-sm font-medium">Browse, discover, and issue assets.</p>
               </button>
+
               <button 
                 onClick={() => { setTargetRole('ADMIN'); setView('ADMIN_LOGIN'); }} 
                 className="group relative bg-white/5 border border-white/10 p-12 rounded-[40px] text-left transition-all hover:bg-white/10 hover:-translate-y-2"
@@ -211,7 +225,10 @@ const App: React.FC = () => {
                 <p className="text-white/40 text-sm font-medium">Manage inventory and students.</p>
               </button>
             </div>
-            <div className="mt-20 text-white/20 text-[10px] font-black uppercase tracking-[0.5em]">VAYMN Core 2.0 • AI-Enabled Management</div>
+            
+            <div className="mt-20 text-white/20 text-[10px] font-black uppercase tracking-[0.5em]">
+              VAYMN Core 2.0 • AI-Enabled Management
+            </div>
           </div>
         </div>
       )}
@@ -234,7 +251,8 @@ const App: React.FC = () => {
             <div className="flex items-center gap-6">
               <span className="text-2xl font-black text-[#1F2A44] tracking-tighter cursor-pointer hover:opacity-70 transition-opacity" onClick={() => setView('HOME')}>VAYMN</span>
               <div className={`px-4 py-1.5 rounded-full text-[9px] font-black border flex items-center gap-2 transition-all ${
-                db.isCloudEnabled() ? 'bg-green-50 text-green-600 border-green-200' : 'bg-slate-50 text-slate-400 border-slate-200'
+                db.isCloudEnabled() ? 'bg-green-50 text-green-600 border-green-200' : 
+                'bg-slate-50 text-slate-400 border-slate-200'
               }`}>
                 <div className={`w-1.5 h-1.5 rounded-full ${db.isCloudEnabled() ? 'bg-green-500' : 'bg-slate-300'}`}></div>
                 {db.isCloudEnabled() ? 'CLOUD' : 'LOCAL'}
@@ -250,6 +268,7 @@ const App: React.FC = () => {
                </button>
             </div>
           </nav>
+
           <main className="p-6 md:p-12 max-w-[1440px] mx-auto animate-fade-in">
             {currentUser.role === 'USER' ? (
               <UserDashboard user={currentUser} books={books} onIssueBook={handleIssueBook} onGoHome={() => setView('HOME')} />
@@ -258,7 +277,10 @@ const App: React.FC = () => {
                 admin={currentUser} books={books} users={users} admins={admins}
                 setBooks={(newBooks) => {
                   const updated = typeof newBooks === 'function' ? (newBooks as any)(books) : newBooks;
-                  sync(async () => { setBooks(updated); await db.saveAllBooks(updated); }, "Inventory Updated");
+                  sync(async () => {
+                    setBooks(updated);
+                    await db.saveAllBooks(updated);
+                  }, "Inventory Updated");
                 }}
                 onDeleteBook={handleDeleteBook}
                 onDeleteUser={id => sync(async () => { setUsers(u => u.filter(x => x.id !== id)); await db.deleteUser(id); }, "Removed.")}

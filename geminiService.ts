@@ -6,10 +6,13 @@ import { Book } from "./types";
  * HELPER: Unified AI Client Initialization
  */
 const getAiClient = () => {
+  // Vite replaces 'process.env.API_KEY' with the actual value at build time
   const apiKey = process.env.API_KEY;
+  
   if (!apiKey || apiKey === 'undefined' || apiKey === '') {
     throw new Error("MISSING_KEY");
   }
+  
   return new GoogleGenAI({ apiKey });
 };
 
@@ -36,7 +39,10 @@ export const getAiRecommendation = async (query: string, inventory: Book[]) => {
     return { text: response.text || "I'm ready to help you find your next book.", links: [] };
   } catch (error: any) { 
     console.error("VAYMN AI Error:", error);
-    return { text: "The librarian is currently off-duty. Please ensure your AI configuration is active and redeploy if necessary." }; 
+    if (error.message === "MISSING_KEY") {
+      return { text: "AI features are currently unavailable. Please ensure the API_KEY environment variable is configured in Vercel and then REDEPLOY the app." };
+    }
+    return { text: `Librarian is busy: ${error.status || 'Connection Error'}. Please try again shortly.` }; 
   }
 };
 
@@ -53,6 +59,7 @@ export const getBookInsight = async (title: string, author: string) => {
     });
     return response.text || "Highly recommended for your collection.";
   } catch (e) { 
+    console.error("Insight Error:", e);
     return "No AI insight available at this time."; 
   }
 };
@@ -65,7 +72,7 @@ export const getBookDetails = async (title: string) => {
     const ai = getAiClient();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Generate library metadata (author, genre, description) for: "${title}".`,
+      contents: `Generate library metadata for: "${title}".`,
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -82,6 +89,7 @@ export const getBookDetails = async (title: string) => {
     
     const text = response.text;
     if (!text) return null;
+    
     return JSON.parse(text.trim());
   } catch (e) { 
     console.error("Metadata Generation Error:", e);
@@ -98,14 +106,12 @@ export const generateBookCover = async (title: string, description: string) => {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: { 
-        parts: [{ text: `A clean, professional, high-resolution book cover for "${title}". Description: ${description}. Style: Modern, cinematic graphic design.` }] 
+        parts: [{ text: `A clean, minimalist, professional book cover for "${title}". Style: Modern graphic design. Description: ${description}` }] 
       },
       config: { imageConfig: { aspectRatio: "3:4" } }
     });
 
-    // Safe access using optional chaining
     const parts = response.candidates?.[0]?.content?.parts;
-    
     if (parts) {
       for (const part of parts) {
         if (part.inlineData) {
