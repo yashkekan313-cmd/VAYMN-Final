@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { User, Book } from '../types';
+import { User, Book, UserRole } from '../types';
 import { getBookDetails, generateBookCover } from '../geminiService';
 import ConfirmationModal from './ConfirmationModal';
 
@@ -22,7 +22,7 @@ interface AdminDashboardProps {
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
-  admin, books, users, admins, setBooks, onDeleteBook, onDeleteUser, onUpdateUser, onReturnBook 
+  admin, books, users, admins, setBooks, onDeleteBook, onDeleteUser, onUpdateUser, onReturnBook, onAddUser, onAddAdmin, onDeleteAdmin, onUpdateAdmin
 }) => {
   const [activeTab, setActiveTab] = useState('OVERVIEW');
   
@@ -33,15 +33,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [imageSource, setImageSource] = useState<'AI' | 'URL' | 'FILE'>('AI');
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // Confirmation State
-  const [deletingBookId, setDeletingBookId] = useState<string | null>(null);
-
   // User Modal State
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
-  const [userForm, setUserForm] = useState<Partial<User>>({ name: '', libraryId: '', email: '' });
+  const [isEditingUser, setIsEditingUser] = useState(false);
+  const [userForm, setUserForm] = useState<Partial<User>>({ name: '', libraryId: '', email: '', password: '', role: 'USER' });
+
+  // Confirmation State
+  const [deletingBookId, setDeletingBookId] = useState<string | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<{id: string, role: UserRole} | null>(null);
 
   const [isAiLoading, setIsAiLoading] = useState(false);
 
+  // Asset Handlers
   const handleOpenAddBook = () => {
     setBookForm({ title: '', author: '', genre: '', description: '', standNumber: '', coverImage: '' });
     setImageSource('AI');
@@ -116,11 +119,33 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setIsBookModalOpen(false);
   };
 
+  // User Handlers
+  const handleOpenAddUser = (role: UserRole) => {
+    setUserForm({ name: '', libraryId: '', email: '', password: '', role });
+    setIsEditingUser(false);
+    setIsUserModalOpen(true);
+  };
+
+  const handleOpenEditUser = (user: User) => {
+    setUserForm(user);
+    setIsEditingUser(true);
+    setIsUserModalOpen(true);
+  };
+
   const saveUser = () => {
     if (!userForm.name || !userForm.libraryId) return alert("Required fields missing.");
-    onUpdateUser(userForm as User);
+    if (isEditingUser) {
+      if (userForm.role === 'ADMIN') onUpdateAdmin(userForm as User);
+      else onUpdateUser(userForm as User);
+    } else {
+      const newUser = { ...userForm, id: Math.random().toString(36).substr(2, 9) } as User;
+      if (userForm.role === 'ADMIN') onAddAdmin(newUser);
+      else onAddUser(newUser);
+    }
     setIsUserModalOpen(false);
   };
+
+  const activeLoans = books.filter(b => !b.isAvailable);
 
   return (
     <div className="flex flex-col lg:flex-row gap-12">
@@ -155,7 +180,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
                 <div className="bg-white p-10 rounded-[44px] border border-[#E5EAF0] shadow-sm">
                    <div className="w-14 h-14 bg-orange-50 text-orange-500 rounded-2xl flex items-center justify-center mb-6"><i className="fas fa-hand-holding"></i></div>
-                   <h3 className="text-4xl font-black text-[#1F2A44]">{books.filter(b => !b.isAvailable).length}</h3>
+                   <h3 className="text-4xl font-black text-[#1F2A44]">{activeLoans.length}</h3>
                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mt-2">Active Loans</p>
                 </div>
                 <div className="bg-white p-10 rounded-[44px] border border-[#E5EAF0] shadow-sm">
@@ -203,7 +228,85 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         )}
 
-        {/* Similar logic for USERS and ISSUES tabs as before... */}
+        {activeTab === 'USERS' && (
+          <div className="space-y-10 animate-fade-in">
+             <div className="flex justify-between items-center px-4">
+                <h2 className="text-2xl font-black text-[#1F2A44] uppercase tracking-wider">Student Directory</h2>
+                <button onClick={() => handleOpenAddUser('USER')} className="px-8 py-4 bg-[#1F2A44] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl hover:bg-slate-800 transition-all flex items-center gap-3">
+                  <i className="fas fa-user-plus"></i> Register Student
+                </button>
+             </div>
+             <div className="bg-white rounded-[44px] border border-[#E5EAF0] overflow-hidden shadow-sm">
+                <table className="w-full text-left border-collapse">
+                   <thead>
+                      <tr className="border-b border-[#E5EAF0] bg-[#F7F9FC]">
+                         <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Student Name</th>
+                         <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Library ID</th>
+                         <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Contact</th>
+                         <th className="px-8 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
+                      </tr>
+                   </thead>
+                   <tbody>
+                      {users.map(u => (
+                        <tr key={u.id} className="border-b border-[#E5EAF0] last:border-0 hover:bg-slate-50 transition-colors">
+                           <td className="px-8 py-6">
+                              <span className="font-bold text-[#1F2A44]">{u.name}</span>
+                           </td>
+                           <td className="px-8 py-6">
+                              <span className="px-4 py-1.5 bg-[#1F2A44] text-white text-[9px] font-black rounded-lg">{u.libraryId}</span>
+                           </td>
+                           <td className="px-8 py-6">
+                              <span className="text-slate-400 text-sm">{u.email}</span>
+                           </td>
+                           <td className="px-8 py-6 text-right space-x-2">
+                              <button onClick={() => handleOpenEditUser(u)} className="w-9 h-9 bg-blue-50 text-blue-500 rounded-lg hover:bg-blue-500 hover:text-white transition-all"><i className="fas fa-edit text-xs"></i></button>
+                              <button onClick={() => setDeletingUserId({id: u.id, role: 'USER'})} className="w-9 h-9 bg-red-50 text-red-500 rounded-lg hover:bg-red-500 hover:text-white transition-all"><i className="fas fa-trash-alt text-xs"></i></button>
+                           </td>
+                        </tr>
+                      ))}
+                   </tbody>
+                </table>
+             </div>
+          </div>
+        )}
+
+        {activeTab === 'ISSUES' && (
+          <div className="space-y-10 animate-fade-in">
+             <div className="flex justify-between items-center px-4">
+                <h2 className="text-2xl font-black text-[#1F2A44] uppercase tracking-wider">Active Loans</h2>
+             </div>
+             {activeLoans.length === 0 ? (
+               <div className="bg-white p-20 rounded-[44px] border border-[#E5EAF0] text-center flex flex-col items-center gap-6">
+                  <div className="w-20 h-20 bg-slate-50 text-slate-200 rounded-full flex items-center justify-center text-3xl"><i className="fas fa-check-circle"></i></div>
+                  <p className="text-slate-400 font-black uppercase tracking-[0.2em] text-[10px]">No Assets currently on loan.</p>
+               </div>
+             ) : (
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {activeLoans.map(b => (
+                    <div key={b.id} className="bg-white p-8 rounded-[40px] border border-[#E5EAF0] flex gap-8 items-center shadow-sm">
+                       <img src={b.coverImage} className="w-20 h-28 object-cover rounded-2xl shadow-lg" alt="" />
+                       <div className="flex-1 min-w-0">
+                          <h4 className="font-black text-[#1F2A44] truncate">{b.title}</h4>
+                          <div className="mt-3 space-y-2">
+                             <div className="flex items-center gap-3">
+                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Issued To:</span>
+                                <span className="px-3 py-1 bg-orange-50 text-orange-600 text-[9px] font-black rounded-lg">{b.issuedTo}</span>
+                             </div>
+                             <div className="flex items-center gap-3">
+                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Due Status:</span>
+                                <span className="text-green-500 text-[9px] font-black uppercase tracking-widest">Active</span>
+                             </div>
+                          </div>
+                       </div>
+                       <button onClick={() => onReturnBook(b.id)} className="px-6 py-4 bg-[#1F2A44] text-white rounded-2xl font-black uppercase text-[9px] tracking-widest hover:bg-slate-800 transition-all shadow-xl">
+                          Quick Return
+                       </button>
+                    </div>
+                  ))}
+               </div>
+             )}
+          </div>
+        )}
       </main>
 
       {/* Asset Registry Modal */}
@@ -322,6 +425,40 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
+      {/* User Management Modal */}
+      {isUserModalOpen && (
+        <div className="fixed inset-0 z-[200] bg-[#1F2A44]/95 backdrop-blur-xl flex items-center justify-center p-6 animate-fade-in">
+           <div className="bg-white rounded-[56px] w-full max-w-2xl overflow-hidden shadow-2xl p-12 md:p-16 space-y-10">
+              <div className="text-center">
+                 <h3 className="text-3xl font-black text-[#1F2A44] mb-2">{isEditingUser ? 'Modify Account' : `Register ${userForm.role}`}</h3>
+                 <p className="text-slate-400 text-xs font-black uppercase tracking-widest">Core Access Management</p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-3">Full Legal Name</label>
+                    <input value={userForm.name} onChange={e => setUserForm({...userForm, name: e.target.value})} placeholder="Enter name" className="w-full p-5 bg-[#F7F9FC] border border-[#E5EAF0] rounded-3xl outline-none text-sm font-bold focus:border-[#5DA9E9]" />
+                 </div>
+                 <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-3">Library ID Number</label>
+                    <input value={userForm.libraryId} onChange={e => setUserForm({...userForm, libraryId: e.target.value})} placeholder="e.g. PP1001" className="w-full p-5 bg-[#F7F9FC] border border-[#E5EAF0] rounded-3xl outline-none text-sm font-bold focus:border-[#5DA9E9]" />
+                 </div>
+                 <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-3">Email Address</label>
+                    <input value={userForm.email} onChange={e => setUserForm({...userForm, email: e.target.value})} placeholder="email@vaymn.com" className="w-full p-5 bg-[#F7F9FC] border border-[#E5EAF0] rounded-3xl outline-none text-sm font-bold focus:border-[#5DA9E9]" />
+                 </div>
+                 <div className="space-y-1">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 ml-3">Access Password</label>
+                    <input value={userForm.password} onChange={e => setUserForm({...userForm, password: e.target.value})} type="password" placeholder="••••••••" className="w-full p-5 bg-[#F7F9FC] border border-[#E5EAF0] rounded-3xl outline-none text-sm font-bold focus:border-[#5DA9E9]" />
+                 </div>
+              </div>
+              <div className="flex gap-4 pt-6">
+                 <button onClick={() => setIsUserModalOpen(false)} className="flex-1 py-6 bg-slate-50 text-slate-400 font-black uppercase text-[11px] tracking-widest rounded-[28px] hover:bg-slate-100">Cancel</button>
+                 <button onClick={saveUser} className="flex-1 py-6 bg-[#1F2A44] text-white font-black uppercase text-[11px] tracking-widest rounded-[28px] shadow-2xl hover:bg-slate-800">Complete Registration</button>
+              </div>
+           </div>
+        </div>
+      )}
+
       {/* Confirmation for Book Deletion */}
       {deletingBookId && (
         <ConfirmationModal 
@@ -332,7 +469,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         />
       )}
 
-      {/* User and Admin Management Modals (Similar UI as Books)... */}
+      {/* Confirmation for User Deletion */}
+      {deletingUserId && (
+        <ConfirmationModal 
+          title="Remove Student?" 
+          message="Are you sure you want to remove this student? They will lose all access to the library portal immediately."
+          onConfirm={() => { 
+            if (deletingUserId.role === 'ADMIN') onDeleteAdmin(deletingUserId.id);
+            else onDeleteUser(deletingUserId.id);
+            setDeletingUserId(null); 
+          }}
+          onCancel={() => setDeletingUserId(null)}
+        />
+      )}
     </div>
   );
 };
