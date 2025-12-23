@@ -27,7 +27,6 @@ const App: React.FC = () => {
   const [targetRole, setTargetRole] = useState<UserRole>('USER');
   const [isConfirmingLogout, setIsConfirmingLogout] = useState(false);
 
-  // Simplified and more robust key check for browser environments
   const hasApiKey = (() => {
     const key = process.env.API_KEY;
     return typeof key === 'string' && key.length > 5 && key !== 'undefined';
@@ -61,13 +60,12 @@ const App: React.FC = () => {
         if (savedUser) setView('DASHBOARD');
       } catch (err) {
         console.error("Initialization failed:", err);
-        addToast("Local mode active.", "info");
       } finally {
         setIsInitializing(false);
       }
     };
     init();
-  }, [addToast]);
+  }, []);
 
   const sync = async (action: () => Promise<void>, successMsg?: string) => {
     setIsSyncing(true);
@@ -145,7 +143,7 @@ const App: React.FC = () => {
     sync(async () => {
       setBooks(prev => prev.filter(b => b.id !== bookId));
       await db.deleteBook(bookId);
-    }, "Asset permanently removed.");
+    }, "Asset removed.");
   };
 
   if (isInitializing) {
@@ -153,7 +151,7 @@ const App: React.FC = () => {
       <div className="min-h-screen bg-[#1F2A44] flex flex-col items-center justify-center text-white">
         <div className="w-16 h-16 border-4 border-[#5DA9E9] border-t-transparent rounded-full animate-spin mb-6"></div>
         <h1 className="text-4xl font-black tracking-tighter mb-2">VAYMN</h1>
-        <p className="text-[#5DA9E9] text-[10px] uppercase tracking-[0.4em] font-bold animate-pulse">Initializing Streams...</p>
+        <p className="text-[#5DA9E9] text-[10px] uppercase tracking-[0.4em] font-bold animate-pulse">Initializing Library Core...</p>
       </div>
     );
   }
@@ -179,7 +177,7 @@ const App: React.FC = () => {
           <i className="fas fa-key text-xl"></i>
           <div>
             <p className="font-bold text-sm">AI Configuration Missing</p>
-            <p className="text-[10px] opacity-80">Add API_KEY to Vercel & click Redeploy.</p>
+            <p className="text-[10px] opacity-80">Add API_KEY in Vercel settings and Redeploy.</p>
           </div>
         </div>
       ) : (
@@ -191,11 +189,6 @@ const App: React.FC = () => {
 
       {view === 'HOME' && (
         <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#1F2A44]">
-          <div className="absolute top-0 left-0 w-full h-full">
-            <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-[#5DA9E9]/10 rounded-full blur-[120px] animate-pulse"></div>
-            <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-white/5 rounded-full blur-[100px] animate-pulse"></div>
-          </div>
-
           <div className="relative z-10 w-full max-w-6xl px-6 py-12 flex flex-col items-center">
             <div className="text-center mb-24 animate-fade-in">
               <h1 className="text-8xl md:text-9xl font-black text-white mb-4 tracking-tighter">VAYMN</h1>
@@ -205,29 +198,25 @@ const App: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-10 w-full max-w-4xl">
               <button 
                 onClick={() => { setTargetRole('USER'); setView('USER_LOGIN'); }} 
-                className="group relative bg-white/5 border border-white/10 p-12 rounded-[40px] text-left transition-all hover:bg-white/10 hover:-translate-y-2"
+                className="group bg-white/5 border border-white/10 p-12 rounded-[40px] text-left transition-all hover:bg-white/10 hover:-translate-y-2"
               >
                 <div className="w-16 h-16 bg-[#5DA9E9] rounded-2xl flex items-center justify-center text-white mb-8 shadow-xl">
                   <i className="fas fa-user text-2xl"></i>
                 </div>
                 <h3 className="text-3xl font-black text-white mb-2">Student Portal</h3>
-                <p className="text-white/40 text-sm font-medium">Browse, discover, and issue assets.</p>
+                <p className="text-white/40 text-sm font-medium">Browse and discover books.</p>
               </button>
 
               <button 
                 onClick={() => { setTargetRole('ADMIN'); setView('ADMIN_LOGIN'); }} 
-                className="group relative bg-white/5 border border-white/10 p-12 rounded-[40px] text-left transition-all hover:bg-white/10 hover:-translate-y-2"
+                className="group bg-white/5 border border-white/10 p-12 rounded-[40px] text-left transition-all hover:bg-white/10 hover:-translate-y-2"
               >
                 <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-[#1F2A44] mb-8 shadow-xl">
                   <i className="fas fa-user-shield text-2xl"></i>
                 </div>
                 <h3 className="text-3xl font-black text-white mb-2">Admin Control</h3>
-                <p className="text-white/40 text-sm font-medium">Manage inventory and students.</p>
+                <p className="text-white/40 text-sm font-medium">Manage assets and students.</p>
               </button>
-            </div>
-            
-            <div className="mt-20 text-white/20 text-[10px] font-black uppercase tracking-[0.5em]">
-              VAYMN Core 2.0 • AI-Enabled Management
             </div>
           </div>
         </div>
@@ -249,10 +238,9 @@ const App: React.FC = () => {
         <>
           <nav className="sticky top-0 z-[100] bg-white/80 backdrop-blur-2xl border-b border-[#E5EAF0] px-8 py-4 flex items-center justify-between shadow-sm">
             <div className="flex items-center gap-6">
-              <span className="text-2xl font-black text-[#1F2A44] tracking-tighter cursor-pointer hover:opacity-70 transition-opacity" onClick={() => setView('HOME')}>VAYMN</span>
-              <div className={`px-4 py-1.5 rounded-full text-[9px] font-black border flex items-center gap-2 transition-all ${
-                db.isCloudEnabled() ? 'bg-green-50 text-green-600 border-green-200' : 
-                'bg-slate-50 text-slate-400 border-slate-200'
+              <span className="text-2xl font-black text-[#1F2A44] tracking-tighter cursor-pointer" onClick={() => setView('HOME')}>VAYMN</span>
+              <div className={`px-4 py-1.5 rounded-full text-[9px] font-black border flex items-center gap-2 ${
+                db.isCloudEnabled() ? 'bg-green-50 text-green-600 border-green-200' : 'bg-slate-50 text-slate-400 border-slate-200'
               }`}>
                 <div className={`w-1.5 h-1.5 rounded-full ${db.isCloudEnabled() ? 'bg-green-500' : 'bg-slate-300'}`}></div>
                 {db.isCloudEnabled() ? 'CLOUD' : 'LOCAL'}
@@ -260,10 +248,10 @@ const App: React.FC = () => {
             </div>
             <div className="flex items-center gap-4">
                <div className="hidden md:flex flex-col items-end">
-                  <span className="text-[10px] font-black text-[#1F2A44] uppercase tracking-wider leading-none">{currentUser.name}</span>
-                  <span className="text-[8px] font-bold text-[#5DA9E9] uppercase tracking-[0.2em]">{currentUser.role}</span>
+                  <span className="text-[10px] font-black text-[#1F2A44] uppercase tracking-wider">{currentUser.name}</span>
+                  <span className="text-[8px] font-bold text-[#5DA9E9] uppercase">{currentUser.role}</span>
                </div>
-               <button onClick={() => setIsConfirmingLogout(true)} className="w-10 h-10 bg-red-50 text-red-500 rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-sm">
+               <button onClick={() => setIsConfirmingLogout(true)} className="w-10 h-10 bg-red-50 text-red-500 rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white transition-all">
                  <i className="fas fa-power-off"></i>
                </button>
             </div>
@@ -275,13 +263,7 @@ const App: React.FC = () => {
             ) : (
               <AdminDashboard 
                 admin={currentUser} books={books} users={users} admins={admins}
-                setBooks={(newBooks) => {
-                  const updated = typeof newBooks === 'function' ? (newBooks as any)(books) : newBooks;
-                  sync(async () => {
-                    setBooks(updated);
-                    await db.saveAllBooks(updated);
-                  }, "Inventory Updated");
-                }}
+                setBooks={setBooks} setUsers={setUsers} setAdmins={setAdmins}
                 onDeleteBook={handleDeleteBook}
                 onDeleteUser={id => sync(async () => { setUsers(u => u.filter(x => x.id !== id)); await db.deleteUser(id); }, "Removed.")}
                 onDeleteAdmin={id => sync(async () => { setAdmins(a => a.filter(x => x.id !== id)); await db.deleteAdmin(id); }, "Removed.")}
@@ -300,7 +282,7 @@ const App: React.FC = () => {
       {isConfirmingLogout && (
         <ConfirmationModal 
           title="Sign Out" 
-          message="End your current session? Local data will persist." 
+          message="End your current session?" 
           onConfirm={handleLogout} 
           onCancel={() => setIsConfirmingLogout(false)} 
         />
