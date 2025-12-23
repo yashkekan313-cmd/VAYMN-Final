@@ -13,6 +13,19 @@ export default defineConfig(({ mode }) => {
     define: {
       'process.env.API_KEY': JSON.stringify(apiKey)
     },
+    build: {
+      // Increase the limit to 1000kb to silence the bundle size warning
+      chunkSizeWarningLimit: 1000,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'vendor': ['react', 'react-dom'],
+            'ai-tools': ['@google/genai'],
+            'db-tools': ['@supabase/supabase-js']
+          }
+        }
+      }
+    },
     server: {
       port: 3000
     }
