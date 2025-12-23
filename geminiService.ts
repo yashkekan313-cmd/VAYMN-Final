@@ -2,44 +2,83 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Book } from "./types";
 
+/**
+ * HELPER: Unified AI Client Initialization
+ * Strictly follows the requirement to use process.env.API_KEY
+ */
+const getAiClient = () => {
+  // Use a safe check for process.env.API_KEY
+  let apiKey: string | undefined;
+  
+  try {
+    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+      apiKey = process.env.API_KEY;
+    }
+  } catch (e) {
+    console.warn("VAYMN: process.env access error", e);
+  }
+  
+  if (!apiKey || apiKey === 'undefined' || apiKey === '') {
+    throw new Error("MISSING_KEY");
+  }
+  
+  return new GoogleGenAI({ apiKey });
+};
+
+/**
+ * AI LIBRARIAN (Chat)
+ */
 export const getAiRecommendation = async (query: string, inventory: Book[]) => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+    const ai = getAiClient();
     const bookList = inventory.map(b => `${b.title} by ${b.author} [ID: ${b.id}, ${b.isAvailable ? 'Available' : 'Issued'}]`).join(' | ');
     
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `You are VAYMN, a world-class professional librarian. CATALOG: [${bookList}] USER REQUEST: "${query}" RULES: 1. Be helpful, concise, and professional. 2. If a user asks for a book we HAVE, confirm availability. 3. If we DON'T have it, suggest a similar book from our CATALOG first. 4. Keep the response under 40 words.`,
+      contents: `You are VAYMN, a world-class librarian.
+      CATALOG: [${bookList}]
+      USER REQUEST: "${query}"
+      RULES: Concise (40 words), professional, confirm availability if we have it.`,
       config: { 
         temperature: 0.2,
         thinkingConfig: { thinkingBudget: 0 }
       }
     });
     
-    return { 
-      text: response.text || "I'm ready to help you find your next book.",
-      links: [] 
-    };
-  } catch (error) { 
-    return { text: "I'm currently performing an inventory check. Please ask again in a moment." }; 
+    return { text: response.text || "I'm ready to help you find your next book.", links: [] };
+  } catch (error: any) { 
+    console.error("VAYMN AI Error:", error);
+    if (error.message === "MISSING_KEY") {
+      return { text: "AI features are currently unavailable. Please ensure the API_KEY environment variable is configured correctly in your deployment settings." };
+    }
+    return { text: `Librarian is busy: ${error.status || 'Connection Error'}. Please try again shortly.` }; 
   }
 };
 
+/**
+ * AI INSIGHT: Summaries
+ */
 export const getBookInsight = async (title: string, author: string) => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+    const ai = getAiClient();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Write a compelling 2-sentence summary for the book "${title}" by ${author}.`,
+      contents: `Provide a 2-sentence professional summary for "${title}" by ${author}.`,
       config: { thinkingConfig: { thinkingBudget: 0 } }
     });
-    return response.text || "A fascinating addition to our library collection.";
-  } catch (e) { return "Highly recommended."; }
+    return response.text || "Highly recommended for your collection.";
+  } catch (e) { 
+    console.error("Insight Error:", e);
+    return "No AI insight available at this time."; 
+  }
 };
 
+/**
+ * ADMIN: AI META GENERATOR
+ */
 export const getBookDetails = async (title: string) => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+    const ai = getAiClient();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Generate library metadata for: "${title}".`,
@@ -56,31 +95,36 @@ export const getBookDetails = async (title: string) => {
         }
       }
     });
-    return JSON.parse(response.text || '{}');
-  } catch (e) { return null; }
+    
+    const text = response.text;
+    if (!text) return null;
+    
+    return JSON.parse(text.trim());
+  } catch (e) { 
+    console.error("Metadata Generation Error:", e);
+    return null; 
+  }
 };
 
+/**
+ * ADMIN: AI COVER GENERATOR
+ */
 export const generateBookCover = async (title: string, description: string) => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+    const ai = getAiClient();
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: { 
-        parts: [{ text: `Professional book cover for "${title}". ${description}. Minimalist style.` }] 
+        parts: [{ text: `A clean, minimalist, professional book cover for "${title}". Style: Modern graphic design. Description: ${description}` }] 
       },
       config: { imageConfig: { aspectRatio: "3:4" } }
     });
 
-    let base64Data = "";
-    const candidate = response.candidates?.[0];
-    if (candidate?.content?.parts) {
-      for (const part of candidate.content.parts) {
-        if (part.inlineData?.data) {
-          base64Data = part.inlineData.data;
-          break;
-        }
-      }
-    }
-    return base64Data ? `data:image/png;base64,${base64Data}` : null;
-  } catch (e) { return null; }
+    // Added optional chaining (?.) before .find to fix the 'Object is possibly undefined' error
+    const part = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+    return part?.inlineData?.data ? `data:image/png;base64,${part.inlineData.data}` : null;
+  } catch (e) { 
+    console.error("Cover Generation Error:", e);
+    return null; 
+  }
 };

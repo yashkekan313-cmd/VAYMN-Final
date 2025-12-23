@@ -27,8 +27,16 @@ const App: React.FC = () => {
   const [targetRole, setTargetRole] = useState<UserRole>('USER');
   const [isConfirmingLogout, setIsConfirmingLogout] = useState(false);
 
-  // Check if API key is configured
-  const hasApiKey = !!process.env.API_KEY && process.env.API_KEY !== 'undefined';
+  // Safe check for API key presence
+  const hasApiKey = (() => {
+    try {
+      return typeof process !== 'undefined' && 
+             !!process.env?.API_KEY && 
+             process.env.API_KEY !== 'undefined';
+    } catch {
+      return false;
+    }
+  })();
 
   const addToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
     const id = Date.now();
@@ -58,7 +66,7 @@ const App: React.FC = () => {
         if (savedUser) setView('DASHBOARD');
       } catch (err) {
         console.error("Initialization failed:", err);
-        addToast("Local mode active. Cloud sync unavailable.", "info");
+        addToast("Local mode active.", "info");
       } finally {
         setIsInitializing(false);
       }
@@ -73,7 +81,7 @@ const App: React.FC = () => {
       if (successMsg) addToast(successMsg, 'success');
     } catch (e) {
       console.error("Sync Error:", e);
-      addToast("Local update complete (Offline).", 'info');
+      addToast("Local update complete.", 'info');
     } finally {
       setIsSyncing(false);
     }
@@ -141,7 +149,7 @@ const App: React.FC = () => {
   if (isInitializing) {
     return (
       <div className="min-h-screen bg-[#1F2A44] flex flex-col items-center justify-center text-white">
-        <div className="w-16 h-16 border-4 border-[#5DA9E9] border-t-transparent rounded-full animate-spin mb-6 shadow-[0_0_20px_rgba(93,169,233,0.3)]"></div>
+        <div className="w-16 h-16 border-4 border-[#5DA9E9] border-t-transparent rounded-full animate-spin mb-6"></div>
         <h1 className="text-4xl font-black tracking-tighter mb-2">VAYMN</h1>
         <p className="text-[#5DA9E9] text-[10px] uppercase tracking-[0.4em] font-bold animate-pulse">Initializing Streams...</p>
       </div>
@@ -168,8 +176,8 @@ const App: React.FC = () => {
         <div className="fixed bottom-6 left-6 z-[300] bg-orange-600 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4 animate-fade-in max-w-sm">
           <i className="fas fa-key text-xl"></i>
           <div>
-            <p className="font-bold text-sm">AI Configuration Required</p>
-            <p className="text-[10px] opacity-80">Make sure your <b>.env.local</b> file exists and contains <b>API_KEY=...</b></p>
+            <p className="font-bold text-sm">AI Configuration Missing</p>
+            <p className="text-[10px] opacity-80">Check your API_KEY environment variable.</p>
           </div>
         </div>
       )}
@@ -178,7 +186,7 @@ const App: React.FC = () => {
         <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#1F2A44]">
           <div className="absolute top-0 left-0 w-full h-full">
             <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-[#5DA9E9]/10 rounded-full blur-[120px] animate-pulse"></div>
-            <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-white/5 rounded-full blur-[100px] animate-pulse" style={{animationDelay: '1s'}}></div>
+            <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-white/5 rounded-full blur-[100px] animate-pulse"></div>
           </div>
 
           <div className="relative z-10 w-full max-w-6xl px-6 py-12 flex flex-col items-center">
@@ -192,22 +200,22 @@ const App: React.FC = () => {
                 onClick={() => { setTargetRole('USER'); setView('USER_LOGIN'); }} 
                 className="group relative bg-white/5 border border-white/10 p-12 rounded-[40px] text-left transition-all hover:bg-white/10 hover:-translate-y-2"
               >
-                <div className="w-16 h-16 bg-[#5DA9E9] rounded-2xl flex items-center justify-center text-white mb-8 shadow-xl group-hover:scale-110 transition-transform">
+                <div className="w-16 h-16 bg-[#5DA9E9] rounded-2xl flex items-center justify-center text-white mb-8 shadow-xl">
                   <i className="fas fa-user text-2xl"></i>
                 </div>
                 <h3 className="text-3xl font-black text-white mb-2">Student Portal</h3>
-                <p className="text-white/40 text-sm font-medium">Browse, discover, and issue your next stream.</p>
+                <p className="text-white/40 text-sm font-medium">Browse, discover, and issue assets.</p>
               </button>
 
               <button 
                 onClick={() => { setTargetRole('ADMIN'); setView('ADMIN_LOGIN'); }} 
                 className="group relative bg-white/5 border border-white/10 p-12 rounded-[40px] text-left transition-all hover:bg-white/10 hover:-translate-y-2"
               >
-                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-[#1F2A44] mb-8 shadow-xl group-hover:scale-110 transition-transform">
+                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-[#1F2A44] mb-8 shadow-xl">
                   <i className="fas fa-user-shield text-2xl"></i>
                 </div>
                 <h3 className="text-3xl font-black text-white mb-2">Admin Control</h3>
-                <p className="text-white/40 text-sm font-medium">Manage inventory, users, and system health.</p>
+                <p className="text-white/40 text-sm font-medium">Manage inventory and students.</p>
               </button>
             </div>
             
@@ -236,12 +244,11 @@ const App: React.FC = () => {
             <div className="flex items-center gap-6">
               <span className="text-2xl font-black text-[#1F2A44] tracking-tighter cursor-pointer hover:opacity-70 transition-opacity" onClick={() => setView('HOME')}>VAYMN</span>
               <div className={`px-4 py-1.5 rounded-full text-[9px] font-black border flex items-center gap-2 transition-all ${
-                isSyncing ? 'bg-[#5DA9E9]/10 text-[#5DA9E9] border-[#5DA9E9]' : 
                 db.isCloudEnabled() ? 'bg-green-50 text-green-600 border-green-200' : 
                 'bg-slate-50 text-slate-400 border-slate-200'
               }`}>
-                <div className={`w-1.5 h-1.5 rounded-full ${isSyncing ? 'bg-[#5DA9E9] animate-ping' : db.isCloudEnabled() ? 'bg-green-500' : 'bg-slate-300'}`}></div>
-                {isSyncing ? 'SYNCING...' : db.isCloudEnabled() ? 'CLOUD CONNECTED' : 'LOCAL MODE'}
+                <div className={`w-1.5 h-1.5 rounded-full ${db.isCloudEnabled() ? 'bg-green-500' : 'bg-slate-300'}`}></div>
+                {db.isCloudEnabled() ? 'CLOUD' : 'LOCAL'}
               </div>
             </div>
             <div className="flex items-center gap-4">
@@ -249,7 +256,7 @@ const App: React.FC = () => {
                   <span className="text-[10px] font-black text-[#1F2A44] uppercase tracking-wider leading-none">{currentUser.name}</span>
                   <span className="text-[8px] font-bold text-[#5DA9E9] uppercase tracking-[0.2em]">{currentUser.role}</span>
                </div>
-               <button onClick={() => setIsConfirmingLogout(true)} className="w-10 h-10 bg-red-50 text-red-500 rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white transition-all transform active:scale-95 shadow-sm">
+               <button onClick={() => setIsConfirmingLogout(true)} className="w-10 h-10 bg-red-50 text-red-500 rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-sm">
                  <i className="fas fa-power-off"></i>
                </button>
             </div>
@@ -268,12 +275,12 @@ const App: React.FC = () => {
                     await db.saveAllBooks(updated);
                   }, "Inventory Updated");
                 }}
-                onDeleteUser={id => sync(async () => { setUsers(u => u.filter(x => x.id !== id)); await db.deleteUser(id); }, "User record removed.")}
-                onDeleteAdmin={id => sync(async () => { setAdmins(a => a.filter(x => x.id !== id)); await db.deleteAdmin(id); }, "Admin record removed.")}
-                onUpdateUser={u => sync(async () => { setUsers(prev => prev.map(x => x.id === u.id ? u : x)); await db.updateUser(u); }, "Profile updated.")}
-                onUpdateAdmin={a => sync(async () => { setAdmins(prev => prev.map(x => x.id === a.id ? a : x)); await db.updateAdmin(a); }, "Profile updated.")}
-                onAddUser={u => sync(async () => { setUsers(p => [...p, u]); await db.updateUser(u); }, "User registered.")}
-                onAddAdmin={a => sync(async () => { setAdmins(p => [...p, a]); await db.updateAdmin(a); }, "Admin registered.")}
+                onDeleteUser={id => sync(async () => { setUsers(u => u.filter(x => x.id !== id)); await db.deleteUser(id); }, "Removed.")}
+                onDeleteAdmin={id => sync(async () => { setAdmins(a => a.filter(x => x.id !== id)); await db.deleteAdmin(id); }, "Removed.")}
+                onUpdateUser={u => sync(async () => { setUsers(prev => prev.map(x => x.id === u.id ? u : x)); await db.updateUser(u); }, "Updated.")}
+                onUpdateAdmin={a => sync(async () => { setAdmins(prev => prev.map(x => x.id === a.id ? a : x)); await db.updateAdmin(a); }, "Updated.")}
+                onAddUser={u => sync(async () => { setUsers(p => [...p, u]); await db.updateUser(u); }, "Registered.")}
+                onAddAdmin={a => sync(async () => { setAdmins(p => [...p, a]); await db.updateAdmin(a); }, "Registered.")}
                 onReturnBook={handleReturnBook}
                 onGoHome={() => setView('HOME')}
               />
@@ -285,7 +292,7 @@ const App: React.FC = () => {
       {isConfirmingLogout && (
         <ConfirmationModal 
           title="Sign Out" 
-          message="Are you sure you want to end your current session? Local data will persist." 
+          message="End your current session? Local data will persist." 
           onConfirm={handleLogout} 
           onCancel={() => setIsConfirmingLogout(false)} 
         />
