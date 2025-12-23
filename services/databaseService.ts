@@ -22,7 +22,7 @@ class DatabaseService {
     if (!this.isCloudEnabled()) return;
     try {
       const { count, error } = await supabase!.from('books').select('*', { count: 'exact', head: true });
-      if (!error && count === 0) {
+      if (!error && (count === 0 || count === null)) {
         await this.forceSeed();
       }
     } catch (e) {
@@ -31,12 +31,10 @@ class DatabaseService {
   }
 
   async forceSeed() {
-    // Populate LocalStorage
     localStorage.setItem('vaymn_books', JSON.stringify(INITIAL_BOOKS));
     localStorage.setItem('vaymn_users', JSON.stringify(INITIAL_USERS));
     localStorage.setItem('vaymn_admins', JSON.stringify(INITIAL_ADMINS));
 
-    // Populate Cloud if connected
     if (this.isCloudEnabled()) {
       try {
         await Promise.all([
@@ -48,13 +46,21 @@ class DatabaseService {
         console.error("Cloud seed error:", e);
       }
     }
+    return { books: INITIAL_BOOKS, users: INITIAL_USERS, admins: INITIAL_ADMINS };
+  }
+
+  async clearAndReset() {
+    localStorage.removeItem('vaymn_books');
+    localStorage.removeItem('vaymn_users');
+    localStorage.removeItem('vaymn_admins');
+    return this.forceSeed();
   }
 
   async getBooks(): Promise<Book[]> {
     if (this.isCloudEnabled()) {
       try {
         const { data, error } = await supabase!.from('books').select('*').order('title');
-        if (!error && data) {
+        if (!error && data && data.length > 0) {
           localStorage.setItem('vaymn_books', JSON.stringify(data));
           return data as Book[];
         }
@@ -68,7 +74,7 @@ class DatabaseService {
     if (this.isCloudEnabled()) {
       try {
         const { data, error } = await supabase!.from('users').select('*').order('name');
-        if (!error && data) {
+        if (!error && data && data.length > 0) {
           localStorage.setItem('vaymn_users', JSON.stringify(data));
           return data as User[];
         }
@@ -82,7 +88,7 @@ class DatabaseService {
     if (this.isCloudEnabled()) {
       try {
         const { data, error } = await supabase!.from('admins').select('*').order('name');
-        if (!error && data) {
+        if (!error && data && data.length > 0) {
           localStorage.setItem('vaymn_admins', JSON.stringify(data));
           return data as User[];
         }
