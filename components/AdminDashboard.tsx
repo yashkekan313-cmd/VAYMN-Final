@@ -31,23 +31,25 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'INVENTORY' | 'DIRECTORY' | 'LOANS'>('OVERVIEW');
   const [isSeeding, setIsSeeding] = useState(false);
   
-  // Modal States
+  // Book Modal State
   const [isBookModalOpen, setIsBookModalOpen] = useState(false);
   const [isEditingBook, setIsEditingBook] = useState(false);
   const [bookForm, setBookForm] = useState<Partial<Book>>({ title: '', author: '', genre: '', description: '', standNumber: '', coverImage: '' });
   const [imageSource, setImageSource] = useState<'AI' | 'URL' | 'FILE'>('AI');
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // User Modal State
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [isEditingUser, setIsEditingUser] = useState(false);
   const [userForm, setUserForm] = useState<Partial<User>>({ name: '', libraryId: '', email: '', password: '', role: 'USER' });
 
+  // Delete State
   const [deletingBookId, setDeletingBookId] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<{id: string, role: UserRole} | null>(null);
 
   const [isAiLoading, setIsAiLoading] = useState(false);
 
-  // Seeding Logic
+  // Restore Sample Data
   const handleManualSeed = async () => {
     setIsSeeding(true);
     try {
@@ -63,7 +65,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  // Book Handlers
+  // --- BOOK FUNCTIONS ---
   const handleOpenAddBook = () => {
     setBookForm({ title: '', author: '', genre: '', description: '', standNumber: '', coverImage: '' });
     setImageSource('AI');
@@ -142,7 +144,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setIsBookModalOpen(false);
   };
 
-  // User Handlers
+  // --- USER FUNCTIONS ---
   const handleOpenAddUser = (role: UserRole) => {
     setUserForm({ name: '', libraryId: '', email: '', password: '', role });
     setIsEditingUser(false);
@@ -200,11 +202,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <div className="bg-white p-10 rounded-[44px] border border-[#E5EAF0] shadow-sm">
                    <h3 className="text-4xl font-black text-[#1F2A44]">{books.length}</h3>
-                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mt-2">Assets</p>
+                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mt-2">Inventory Count</p>
                 </div>
                 <div className="bg-white p-10 rounded-[44px] border border-[#E5EAF0] shadow-sm">
                    <h3 className="text-4xl font-black text-[#1F2A44]">{activeLoans.length}</h3>
-                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mt-2">Loans</p>
+                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mt-2">Active Loans</p>
                 </div>
                 <div className="bg-white p-10 rounded-[44px] border border-[#E5EAF0] shadow-sm">
                    <h3 className="text-4xl font-black text-[#1F2A44]">{users.length}</h3>
@@ -215,7 +217,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
              <div className="bg-[#1F2A44] rounded-[52px] p-12 text-white relative overflow-hidden shadow-2xl flex flex-col md:flex-row items-center justify-between gap-10">
                 <div className="relative z-10 max-w-xl">
                    <h2 className="text-3xl font-black mb-4">Core Management</h2>
-                   <p className="text-white/60 text-lg leading-relaxed font-medium">Use the repair tool if your lists are not populating from the cloud.</p>
+                   <p className="text-white/60 text-lg leading-relaxed font-medium">If lists are empty or corrupted, use the repair tool to sync with sample data.</p>
                 </div>
                 <button 
                   onClick={handleManualSeed}
@@ -231,7 +233,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {activeTab === 'INVENTORY' && (
           <div className="space-y-10 animate-fade-in">
              <div className="flex justify-between items-center px-4">
-                <h2 className="text-2xl font-black text-[#1F2A44] uppercase tracking-wider">Inventory</h2>
+                <h2 className="text-2xl font-black text-[#1F2A44] uppercase tracking-wider">Asset Inventory</h2>
                 <button onClick={handleOpenAddBook} className="px-8 py-4 bg-[#1F2A44] text-white rounded-2xl font-black text-[10px] tracking-widest uppercase">
                   <i className="fas fa-plus mr-2"></i> New Asset
                 </button>
@@ -243,9 +245,21 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                      <div className="flex-1 min-w-0 flex flex-col justify-center">
                         <h4 className="font-black text-[#1F2A44] truncate mb-1">{b.title}</h4>
                         <p className="text-[10px] text-[#5DA9E9] font-black uppercase tracking-widest truncate">{b.author}</p>
+                        
+                        {/* THE EDIT BUTTONS (NOW VISIBLE AND PROMINENT) */}
                         <div className="mt-5 flex items-center gap-2">
-                           <button onClick={() => handleOpenEditBook(b)} className="w-9 h-9 bg-blue-50 text-blue-500 rounded-lg flex items-center justify-center hover:bg-blue-500 hover:text-white transition-all"><i className="fas fa-edit text-xs"></i></button>
-                           <button onClick={() => setDeletingBookId(b.id)} className="w-9 h-9 bg-red-50 text-red-500 rounded-lg flex items-center justify-center hover:bg-red-500 hover:text-white transition-all"><i className="fas fa-trash-alt text-xs"></i></button>
+                           <button 
+                             onClick={() => handleOpenEditBook(b)} 
+                             className="px-4 py-2.5 bg-blue-50 text-blue-600 rounded-xl flex items-center gap-2 hover:bg-blue-600 hover:text-white transition-all text-[9px] font-black uppercase tracking-widest"
+                           >
+                             <i className="fas fa-edit"></i> Edit
+                           </button>
+                           <button 
+                             onClick={() => setDeletingBookId(b.id)} 
+                             className="w-9 h-9 bg-red-50 text-red-500 rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white transition-all"
+                           >
+                             <i className="fas fa-trash-alt text-xs"></i>
+                           </button>
                            <span className={`px-2 py-1 ml-auto text-[8px] font-black uppercase tracking-widest rounded-lg ${b.isAvailable ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
                              {b.isAvailable ? 'Stock' : 'Loaned'}
                            </span>
@@ -274,9 +288,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <table className="w-full text-left">
                      <thead>
                         <tr className="border-b border-[#E5EAF0] bg-slate-50">
-                           <th className="px-10 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Name</th>
-                           <th className="px-10 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">ID</th>
-                           <th className="px-10 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Action</th>
+                           <th className="px-10 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Student Name</th>
+                           <th className="px-10 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Library ID</th>
+                           <th className="px-10 py-6 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
                         </tr>
                      </thead>
                      <tbody>
@@ -285,8 +299,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                              <td className="px-10 py-6 font-bold text-[#1F2A44]">{u.name}</td>
                              <td className="px-10 py-6"><span className="px-3 py-1 bg-slate-100 text-[#1F2A44] text-[10px] font-black rounded-lg">{u.libraryId}</span></td>
                              <td className="px-10 py-6 text-right space-x-3">
-                                <button onClick={() => handleOpenEditUser(u)} className="text-blue-500 hover:text-blue-700 font-black text-[10px] uppercase tracking-widest">Edit</button>
-                                <button onClick={() => setDeletingUserId({id: u.id, role: 'USER'})} className="text-red-400 hover:text-red-600 font-black text-[10px] uppercase tracking-widest">Delete</button>
+                                {/* THE USER EDIT BUTTON */}
+                                <button 
+                                  onClick={() => handleOpenEditUser(u)} 
+                                  className="px-5 py-2.5 bg-blue-50 text-blue-500 hover:bg-blue-500 hover:text-white rounded-xl transition-all font-black text-[9px] uppercase tracking-widest"
+                                >
+                                  Edit Info
+                                </button>
+                                <button 
+                                  onClick={() => setDeletingUserId({id: u.id, role: 'USER'})} 
+                                  className="text-red-400 hover:text-red-600 font-black text-[10px] p-2"
+                                >
+                                  <i className="fas fa-trash-alt"></i>
+                                </button>
                              </td>
                           </tr>
                         ))}
@@ -313,9 +338,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                        <img src={b.coverImage} className="w-20 h-28 object-cover rounded-2xl shadow-lg" alt="" />
                        <div className="flex-1 min-w-0">
                           <h4 className="font-black text-[#1F2A44] truncate">{b.title}</h4>
-                          <p className="text-[10px] font-black uppercase tracking-widest text-orange-600 mt-2">ID: {b.issuedTo}</p>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-orange-600 mt-2">Issued to: {b.issuedTo}</p>
                        </div>
-                       <button onClick={() => onReturnBook(b.id)} className="px-6 py-4 bg-[#1F2A44] text-white rounded-2xl font-black text-[9px] tracking-widest uppercase shadow-xl">Return</button>
+                       <button onClick={() => onReturnBook(b.id)} className="px-6 py-4 bg-[#1F2A44] text-white rounded-2xl font-black text-[9px] tracking-widest uppercase shadow-xl">Return Asset</button>
                     </div>
                   ))}
                </div>
@@ -324,7 +349,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         )}
       </main>
 
-      {/* Asset Registry Modal */}
+      {/* ASSET REGISTRY MODAL (RESTORED ALL AI FEATURES) */}
       {isBookModalOpen && (
         <div className="fixed inset-0 z-[200] bg-[#1F2A44]/95 backdrop-blur-xl flex items-center justify-center p-6 overflow-y-auto">
            <div className="bg-white rounded-[56px] w-full max-w-5xl overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[95vh] animate-fade-in">
@@ -341,7 +366,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     {isAiLoading && (
                       <div className="absolute inset-0 bg-white/80 flex flex-col items-center justify-center animate-fade-in">
                         <div className="w-10 h-10 border-4 border-[#5DA9E9] border-t-transparent rounded-full animate-spin mb-2"></div>
-                        <span className="text-[8px] font-black text-[#5DA9E9] uppercase tracking-widest">AI Working...</span>
+                        <span className="text-[8px] font-black text-[#5DA9E9] uppercase tracking-widest">AI Generating...</span>
                       </div>
                     )}
                  </div>
@@ -357,7 +382,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                        <input 
                          value={bookForm.coverImage?.startsWith('data:') ? '' : bookForm.coverImage} 
                          onChange={e => setBookForm({...bookForm, coverImage: e.target.value})} 
-                         placeholder="Image URL" 
+                         placeholder="Paste Image URL" 
                          className="w-full p-4 bg-white border border-[#E5EAF0] rounded-2xl outline-none text-[11px] font-bold"
                        />
                     )}
@@ -365,7 +390,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     {imageSource === 'FILE' && (
                        <div>
                           <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" className="hidden" />
-                          <button onClick={() => fileInputRef.current?.click()} className="w-full py-4 bg-white border border-[#E5EAF0] text-[#1F2A44] rounded-2xl font-black uppercase text-[10px] tracking-widest">Select Image</button>
+                          <button onClick={() => fileInputRef.current?.click()} className="w-full py-4 bg-white border border-[#E5EAF0] text-[#1F2A44] rounded-2xl font-black uppercase text-[10px] tracking-widest">Select From PC</button>
                        </div>
                     )}
                  </div>
@@ -373,14 +398,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
               <div className="flex-1 p-12 md:p-16 space-y-8 overflow-y-auto">
                  <div className="flex justify-between items-center">
-                    <h3 className="text-3xl font-black text-[#1F2A44]">{isEditingBook ? 'Modify Asset' : 'Register Asset'}</h3>
+                    <h3 className="text-3xl font-black text-[#1F2A44]">{isEditingBook ? 'Update Asset Info' : 'New Asset Registry'}</h3>
                     <button 
                       onClick={handleAiMagic} 
                       disabled={isAiLoading || !bookForm.title} 
                       className="px-6 py-4 bg-[#F7F9FC] border border-[#E5EAF0] text-[#1F2A44] rounded-2xl flex items-center gap-3 hover:border-[#5DA9E9] transition-all disabled:opacity-50"
                     >
                       <i className="fas fa-wand-magic-sparkles text-[#5DA9E9]"></i>
-                      <span className="text-[10px] font-black uppercase tracking-widest">AI Fill</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest">AI Magic Fill</span>
                     </button>
                  </div>
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -389,24 +414,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <input value={bookForm.title} onChange={e => setBookForm({...bookForm, title: e.target.value})} placeholder="Title" className="w-full p-5 bg-[#F7F9FC] border border-[#E5EAF0] rounded-3xl outline-none text-sm font-bold" />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase text-slate-400 ml-2">Author</label>
+                      <label className="text-[9px] font-black uppercase text-slate-400 ml-2">Author Name</label>
                       <input value={bookForm.author} onChange={e => setBookForm({...bookForm, author: e.target.value})} placeholder="Author" className="w-full p-5 bg-[#F7F9FC] border border-[#E5EAF0] rounded-3xl outline-none text-sm font-bold" />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase text-slate-400 ml-2">Genre</label>
+                      <label className="text-[9px] font-black uppercase text-slate-400 ml-2">Genre Category</label>
                       <input value={bookForm.genre} onChange={e => setBookForm({...bookForm, genre: e.target.value})} placeholder="Genre" className="w-full p-5 bg-[#F7F9FC] border border-[#E5EAF0] rounded-3xl outline-none text-sm font-bold" />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase text-slate-400 ml-2">Stand Location</label>
+                      <label className="text-[9px] font-black uppercase text-slate-400 ml-2">Physical Stand ID</label>
                       <input value={bookForm.standNumber} onChange={e => setBookForm({...bookForm, standNumber: e.target.value})} placeholder="Shelf ID" className="w-full p-5 bg-[#F7F9FC] border border-[#E5EAF0] rounded-3xl outline-none text-sm font-bold" />
                     </div>
                  </div>
                  <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase text-slate-400 ml-2">Description</label>
-                    <textarea value={bookForm.description} onChange={e => setBookForm({...bookForm, description: e.target.value})} placeholder="Asset synopsis..." rows={4} className="w-full p-6 bg-[#F7F9FC] border border-[#E5EAF0] rounded-[32px] outline-none text-sm font-bold resize-none" />
+                    <label className="text-[9px] font-black uppercase text-slate-400 ml-2">Official Description</label>
+                    <textarea value={bookForm.description} onChange={e => setBookForm({...bookForm, description: e.target.value})} placeholder="Provide a brief synopsis..." rows={4} className="w-full p-6 bg-[#F7F9FC] border border-[#E5EAF0] rounded-[32px] outline-none text-sm font-bold resize-none" />
                  </div>
                  <div className="flex gap-4 pt-10">
-                    <button onClick={() => setIsBookModalOpen(false)} className="flex-1 py-6 bg-slate-50 text-slate-400 font-black uppercase text-[11px] tracking-widest rounded-3xl">Cancel</button>
+                    <button onClick={() => setIsBookModalOpen(false)} className="flex-1 py-6 bg-slate-50 text-slate-400 font-black uppercase text-[11px] tracking-widest rounded-3xl">Dismiss</button>
                     <button onClick={saveBook} className="flex-1 py-6 bg-[#1F2A44] text-white font-black uppercase text-[11px] tracking-widest rounded-3xl shadow-2xl">Save to Registry</button>
                  </div>
               </div>
@@ -414,18 +439,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* User Management Modal */}
+      {/* USER MODAL (NOW SUPPORTS EDITING) */}
       {isUserModalOpen && (
         <div className="fixed inset-0 z-[200] bg-[#1F2A44]/95 backdrop-blur-xl flex items-center justify-center p-6 animate-fade-in">
            <div className="bg-white rounded-[56px] w-full max-w-xl p-16 space-y-10 shadow-2xl">
-              <h3 className="text-3xl font-black text-[#1F2A44] text-center">{isEditingUser ? 'Modify User' : `Register ${userForm.role}`}</h3>
+              <h3 className="text-3xl font-black text-[#1F2A44] text-center">{isEditingUser ? 'Update Student Record' : 'Register New Student'}</h3>
               <div className="space-y-6">
                  <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase text-slate-400 ml-2">Full Name</label>
+                    <label className="text-[9px] font-black uppercase text-slate-400 ml-2">Student Full Name</label>
                     <input value={userForm.name} onChange={e => setUserForm({...userForm, name: e.target.value})} placeholder="Full Name" className="w-full p-5 bg-[#F7F9FC] border border-[#E5EAF0] rounded-2xl outline-none text-sm font-bold" />
                  </div>
                  <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase text-slate-400 ml-2">Library ID</label>
+                    <label className="text-[9px] font-black uppercase text-slate-400 ml-2">Official Library ID</label>
                     <input value={userForm.libraryId} onChange={e => setUserForm({...userForm, libraryId: e.target.value})} placeholder="ID Number" className="w-full p-5 bg-[#F7F9FC] border border-[#E5EAF0] rounded-2xl outline-none text-sm font-bold" />
                  </div>
                  <div className="space-y-1">
@@ -433,13 +458,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <input value={userForm.email} onChange={e => setUserForm({...userForm, email: e.target.value})} placeholder="Email" className="w-full p-5 bg-[#F7F9FC] border border-[#E5EAF0] rounded-2xl outline-none text-sm font-bold" />
                  </div>
                  <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase text-slate-400 ml-2">Password</label>
+                    <label className="text-[9px] font-black uppercase text-slate-400 ml-2">Portal Password</label>
                     <input value={userForm.password} onChange={e => setUserForm({...userForm, password: e.target.value})} type="password" placeholder="Password" className="w-full p-5 bg-[#F7F9FC] border border-[#E5EAF0] rounded-2xl outline-none text-sm font-bold" />
                  </div>
               </div>
               <div className="flex gap-4 pt-6">
                  <button onClick={() => setIsUserModalOpen(false)} className="flex-1 py-6 bg-slate-50 text-slate-400 font-black uppercase text-[11px] tracking-widest rounded-3xl">Cancel</button>
-                 <button onClick={saveUser} className="flex-1 py-6 bg-[#1F2A44] text-white font-black uppercase text-[11px] tracking-widest rounded-3xl shadow-xl">{isEditingUser ? 'Update User' : 'Complete Registration'}</button>
+                 <button onClick={saveUser} className="flex-1 py-6 bg-[#1F2A44] text-white font-black uppercase text-[11px] tracking-widest rounded-3xl shadow-xl">{isEditingUser ? 'Confirm Updates' : 'Complete Registration'}</button>
               </div>
            </div>
         </div>
