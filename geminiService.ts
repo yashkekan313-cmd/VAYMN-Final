@@ -3,25 +3,12 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Book } from "./types";
 
 /**
- * HELPER: Unified AI Client Initialization
- */
-const getAiClient = () => {
-  // Vite replaces 'process.env.API_KEY' with the actual value at build time
-  const apiKey = process.env.API_KEY;
-  
-  if (!apiKey || apiKey === 'undefined' || apiKey === '') {
-    throw new Error("MISSING_KEY");
-  }
-  
-  return new GoogleGenAI({ apiKey });
-};
-
-/**
  * AI LIBRARIAN (Chat)
  */
 export const getAiRecommendation = async (query: string, inventory: Book[]) => {
   try {
-    const ai = getAiClient();
+    // Directly initialize GoogleGenAI as per strict guidelines
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const bookList = inventory.map(b => `${b.title} by ${b.author} [ID: ${b.id}, ${b.isAvailable ? 'Available' : 'Issued'}]`).join(' | ');
     
     const response = await ai.models.generateContent({
@@ -39,7 +26,8 @@ export const getAiRecommendation = async (query: string, inventory: Book[]) => {
     return { text: response.text || "I'm ready to help you find your next book.", links: [] };
   } catch (error: any) { 
     console.error("VAYMN AI Error:", error);
-    if (error.message === "MISSING_KEY") {
+    // Handle cases where the key might be missing or invalid
+    if (!process.env.API_KEY || process.env.API_KEY === 'undefined') {
       return { text: "AI features are currently unavailable. Please ensure the API_KEY environment variable is configured in Vercel and then REDEPLOY the app." };
     }
     return { text: `Librarian is busy: ${error.status || 'Connection Error'}. Please try again shortly.` }; 
@@ -51,7 +39,8 @@ export const getAiRecommendation = async (query: string, inventory: Book[]) => {
  */
 export const getBookInsight = async (title: string, author: string) => {
   try {
-    const ai = getAiClient();
+    // Directly initialize GoogleGenAI as per strict guidelines
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Provide a 2-sentence professional summary for "${title}" by ${author}.`,
@@ -69,7 +58,8 @@ export const getBookInsight = async (title: string, author: string) => {
  */
 export const getBookDetails = async (title: string) => {
   try {
-    const ai = getAiClient();
+    // Directly initialize GoogleGenAI as per strict guidelines
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Generate library metadata for: "${title}".`,
@@ -102,7 +92,8 @@ export const getBookDetails = async (title: string) => {
  */
 export const generateBookCover = async (title: string, description: string) => {
   try {
-    const ai = getAiClient();
+    // Directly initialize GoogleGenAI as per strict guidelines
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: { 
@@ -114,6 +105,7 @@ export const generateBookCover = async (title: string, description: string) => {
     const parts = response.candidates?.[0]?.content?.parts;
     if (parts) {
       for (const part of parts) {
+        // Find the image part as per instructions
         if (part.inlineData) {
           return `data:image/png;base64,${part.inlineData.data}`;
         }
