@@ -7,39 +7,76 @@
     <title>VAYMN - Stream Smarter</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
     <style>
         :root {
             --primary: #1F2A44;
             --secondary: #5DA9E9;
             --bg-off-white: #F7F9FC;
-            --card-grey: #E5EAF0;
-            --success: #4CAF50;
-            --warning: #FF9800;
-            --danger: #E53935;
         }
         body { 
             font-family: 'Inter', sans-serif; 
             background-color: var(--bg-off-white);
             color: var(--primary);
+            overflow-x: hidden;
         }
         h1, h2, h3, h4, h5, button { 
-            font-family: 'Poppins', sans-serif; 
+            font-family: 'Space Grotesk', sans-serif; 
         }
-        .glass { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(8px); }
-        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         
-        .bg-primary { background-color: var(--primary); }
-        .text-primary { color: var(--primary); }
-        .bg-secondary { background-color: var(--secondary); }
-        .text-secondary { color: var(--secondary); }
-        .bg-card { background-color: var(--card-grey); }
-        .bg-success-leaf { background-color: var(--success); }
-        .bg-warning-orange { background-color: var(--warning); }
-        .bg-danger-soft { background-color: var(--danger); }
+        /* Data Stream Background Animation */
+        .data-stream-bg {
+            background-image: 
+                linear-gradient(rgba(31, 42, 68, 0.97), rgba(31, 42, 68, 0.97)),
+                url('https://www.transparenttextures.com/patterns/carbon-fibre.png');
+            position: relative;
+            overflow: hidden;
+        }
+        .data-stream-bg::after {
+            content: "";
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(circle at center, rgba(93, 169, 233, 0.05) 0%, transparent 70%);
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Animations */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+            100% { transform: translateY(0px); }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        .animate-fade-in-up { animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         
-        input::placeholder { color: #94A3B8; }
+        .stream-card {
+            transition: all 0.5s cubic-bezier(0.165, 0.84, 0.44, 1);
+        }
+        .stream-card:hover {
+            transform: scale(1.05) translateY(-10px);
+            box-shadow: 0 30px 60px rgba(31, 42, 68, 0.15);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 <script type="importmap">
 {
@@ -55,9 +92,8 @@
 }
 </script>
 </head>
-<body class="bg-[#F7F9FC] text-[#1F2A44]">
+<body class="bg-[#F7F9FC]">
     <div id="root"></div>
-    <!-- Vite entry point -->
     <script type="module" src="/index.tsx"></script>
 </body>
 </html>
