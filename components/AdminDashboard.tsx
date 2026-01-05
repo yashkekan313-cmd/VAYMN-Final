@@ -46,7 +46,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const saveBook = async () => {
-    const bookData = { ...bookForm, id: bookForm.id || Math.random().toString(36).substr(2, 9), isAvailable: true } as Book;
+    const bookData: Book = { 
+      id: bookForm.id || Math.random().toString(36).substr(2, 9),
+      title: bookForm.title || 'Untitled',
+      author: bookForm.author || 'Unknown',
+      genre: bookForm.genre || 'Uncategorized',
+      coverImage: bookForm.coverImage || 'https://via.placeholder.com/300x450?text=No+Cover',
+      standNumber: bookForm.standNumber || 'N/A',
+      description: bookForm.description || '',
+      isAvailable: bookForm.isAvailable ?? true,
+      waitlist: bookForm.waitlist || []
+    };
+    
     await db.updateBook(bookData);
     const updatedBooks = await db.getBooks();
     setBooks(updatedBooks);
