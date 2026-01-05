@@ -19,12 +19,12 @@ interface AdminDashboardProps {
   onAddUser: (user: User) => void;
   onAddAdmin: (admin: User) => void;
   onReturnBook: (id: string) => void;
-  onPenalty: (id: string) => void;
+  onPenalty: (libraryId: string) => void;
   onGoHome: () => void;
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
-  admin, books, users, onDeleteBook, onReturnBook, onPenalty
+  admin, books, users, onDeleteBook, onReturnBook, onPenalty, setBooks
 }) => {
   const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'INVENTORY' | 'LOANS'>('OVERVIEW');
   const [isBookModalOpen, setIsBookModalOpen] = useState(false);
@@ -47,9 +47,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const saveBook = async () => {
     const bookData = { ...bookForm, id: bookForm.id || Math.random().toString(36).substr(2, 9), isAvailable: true } as Book;
-    db.updateBook(bookData);
+    await db.updateBook(bookData);
+    const updatedBooks = await db.getBooks();
+    setBooks(updatedBooks);
     setIsBookModalOpen(false);
-    window.location.reload(); // Simple refresh for state update
   };
 
   return (
