@@ -7,8 +7,8 @@ export interface User {
   password?: string;
   email: string;
   role: UserRole;
-  xp?: number; // Gamification
-  badges?: string[]; // Gamification
+  xp: number; // Defensive: non-optional to help TS
+  badges: string[]; // Defensive: non-optional
 }
 
 export interface Book {
@@ -18,11 +18,11 @@ export interface Book {
   genre: string;
   coverImage: string;
   standNumber: string;
-  description?: string;
+  description: string; // Defensive: non-optional
   isAvailable: boolean;
   issuedTo?: string; // libraryId
-  issuedDate?: string; // ISO string for tracking one-week deadline
-  waitlist?: string[]; // Array of libraryIds for smart reservations
+  issuedDate?: string; // ISO string
+  waitlist: string[]; // Defensive: non-optional
 }
 
 export interface AuthState {
