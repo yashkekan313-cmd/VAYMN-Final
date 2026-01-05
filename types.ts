@@ -1,4 +1,3 @@
-
 export type UserRole = 'USER' | 'ADMIN';
 
 export interface User {
@@ -8,6 +7,8 @@ export interface User {
   password?: string;
   email: string;
   role: UserRole;
+  xp?: number; // Gamification
+  badges?: string[]; // Gamification
 }
 
 export interface Book {
@@ -18,9 +19,10 @@ export interface Book {
   coverImage: string;
   standNumber: string;
   description?: string;
-  trailerUrl?: string; // AI Generated Video Link
   isAvailable: boolean;
   issuedTo?: string; // libraryId
+  issuedDate?: string; // ISO string for tracking one-week deadline
+  waitlist?: string[]; // Array of libraryIds for smart reservations
 }
 
 export interface AuthState {
