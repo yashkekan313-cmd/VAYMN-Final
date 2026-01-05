@@ -29,6 +29,7 @@ const AuthScreen: React.FC<AuthScreenProps> = ({
         alert("Please fill all fields");
         return;
       }
+      // Fix: Adding missing xp and badges properties to comply with the User interface definition
       const newUser: User = {
         id: Math.random().toString(36).substr(2, 9),
         name,
@@ -36,6 +37,8 @@ const AuthScreen: React.FC<AuthScreenProps> = ({
         password: pass,
         email,
         role,
+        xp: 0,
+        badges: [],
       };
       onSignup(newUser);
     }
