@@ -7,8 +7,8 @@ export interface User {
   password?: string;
   email: string;
   role: UserRole;
-  xp: number; // Defensive: non-optional to help TS
-  badges: string[]; // Defensive: non-optional
+  xp: number; 
+  badges: string[];
 }
 
 export interface Book {
@@ -18,11 +18,11 @@ export interface Book {
   genre: string;
   coverImage: string;
   standNumber: string;
-  description: string; // Defensive: non-optional
+  description: string;
   isAvailable: boolean;
   issuedTo?: string; // libraryId
   issuedDate?: string; // ISO string
-  waitlist: string[]; // Defensive: non-optional
+  waitlist: string[]; 
 }
 
 export interface AuthState {
