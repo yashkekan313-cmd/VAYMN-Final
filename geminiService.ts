@@ -1,5 +1,4 @@
-
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { Book } from "./types";
 
 /**
@@ -7,49 +6,54 @@ import { Book } from "./types";
  */
 export const getAiRecommendation = async (query: string, inventory: Book[]) => {
   try {
-    // Directly initialize GoogleGenAI as per strict guidelines
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const bookList = inventory.map(b => `${b.title} by ${b.author} [ID: ${b.id}, ${b.isAvailable ? 'Available' : 'Issued'}]`).join(' | ');
     
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `You are VAYMN, a world-class librarian.
+      contents: `You are VAYMN, a world-class multilingual smart librarian.
       CATALOG: [${bookList}]
       USER REQUEST: "${query}"
-      RULES: Concise (40 words), professional, confirm availability if we have it.`,
+      RULES:
+      1. Detect the user's language (English, Hindi, or Marathi) and respond in that same language.
+      2. Keep responses concise (under 50 words).
+      3. If a book is available in the CATALOG, guide them to it.
+      4. Be extremely polite and helpful.`,
       config: { 
-        temperature: 0.2,
+        temperature: 0.3,
         thinkingConfig: { thinkingBudget: 0 }
       }
     });
     
-    return { text: response.text || "I'm ready to help you find your next book.", links: [] };
+    return { text: response.text || "I am here to help.", links: [] };
   } catch (error: any) { 
     console.error("VAYMN AI Error:", error);
-    // Handle cases where the key might be missing or invalid
-    if (!process.env.API_KEY || process.env.API_KEY === 'undefined') {
-      return { text: "AI features are currently unavailable. Please ensure the API_KEY environment variable is configured in Vercel and then REDEPLOY the app." };
-    }
-    return { text: `Librarian is busy: ${error.status || 'Connection Error'}. Please try again shortly.` }; 
+    return { text: "I'm having trouble connecting right now. Please try again." }; 
   }
 };
 
 /**
- * AI INSIGHT: Summaries
+ * AI VOICE (TTS)
  */
-export const getBookInsight = async (title: string, author: string) => {
+export const getAiVoice = async (text: string) => {
   try {
-    // Directly initialize GoogleGenAI as per strict guidelines
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: `Provide a 2-sentence professional summary for "${title}" by ${author}.`,
-      config: { thinkingConfig: { thinkingBudget: 0 } }
+      model: "gemini-2.5-flash-preview-tts",
+      contents: [{ parts: [{ text: `Speak this as a helpful library assistant: ${text}` }] }],
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: 'Kore' },
+          },
+        },
+      },
     });
-    return response.text || "Highly recommended for your collection.";
-  } catch (e) { 
-    console.error("Insight Error:", e);
-    return "No AI insight available at this time."; 
+    return response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+  } catch (e) {
+    console.error("TTS Error", e);
+    return null;
   }
 };
 
@@ -58,7 +62,6 @@ export const getBookInsight = async (title: string, author: string) => {
  */
 export const getBookDetails = async (title: string) => {
   try {
-    // Directly initialize GoogleGenAI as per strict guidelines
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -70,50 +73,16 @@ export const getBookDetails = async (title: string) => {
           properties: {
             author: { type: Type.STRING },
             genre: { type: Type.STRING },
+            language: { type: Type.STRING, description: "Language of the book (English, Marathi, or Hindi)" },
             description: { type: Type.STRING },
           },
-          required: ["author", "genre", "description"]
+          required: ["author", "genre", "description", "language"]
         }
       }
     });
-    
     const text = response.text;
-    if (!text) return null;
-    
-    return JSON.parse(text.trim());
+    return text ? JSON.parse(text.trim()) : null;
   } catch (e) { 
-    console.error("Metadata Generation Error:", e);
-    return null; 
-  }
-};
-
-/**
- * ADMIN: AI COVER GENERATOR
- */
-export const generateBookCover = async (title: string, description: string) => {
-  try {
-    // Directly initialize GoogleGenAI as per strict guidelines
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image',
-      contents: { 
-        parts: [{ text: `A clean, minimalist, professional book cover for "${title}". Style: Modern graphic design. Description: ${description}` }] 
-      },
-      config: { imageConfig: { aspectRatio: "3:4" } }
-    });
-
-    const parts = response.candidates?.[0]?.content?.parts;
-    if (parts) {
-      for (const part of parts) {
-        // Find the image part as per instructions
-        if (part.inlineData) {
-          return `data:image/png;base64,${part.inlineData.data}`;
-        }
-      }
-    }
-    return null;
-  } catch (e) { 
-    console.error("Cover Generation Error:", e);
     return null; 
   }
 };
