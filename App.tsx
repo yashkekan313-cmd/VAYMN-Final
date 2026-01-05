@@ -59,7 +59,7 @@ const App: React.FC = () => {
     if (!currentUser) return;
     const book = books.find(b => b.id === bookId);
     if (!book) return;
-    const updatedBook = { 
+    const updatedBook: Book = { 
       ...book, 
       isAvailable: false, 
       issuedTo: currentUser.libraryId,
@@ -67,16 +67,16 @@ const App: React.FC = () => {
     };
     setBooks(prev => prev.map(b => b.id === bookId ? updatedBook : b));
     db.updateBook(updatedBook);
-    addToast(`Stream initiated: ${book.title}. Enjoy your asset.`, 'success');
+    addToast(`Stream initiated: ${book.title}.`, 'success');
   };
 
   const handleReIssueBook = (bookId: string) => {
     const book = books.find(b => b.id === bookId);
     if (!book) return;
-    const updatedBook = { ...book, issuedDate: new Date().toISOString() };
+    const updatedBook: Book = { ...book, issuedDate: new Date().toISOString() };
     setBooks(prev => prev.map(b => b.id === bookId ? updatedBook : b));
     db.updateBook(updatedBook);
-    addToast(`Stream refreshed: ${book.title}. 7 days added.`, 'info');
+    addToast(`Stream refreshed: ${book.title}.`, 'info');
   };
 
   const handleReturnBook = (bookId: string) => {
@@ -86,9 +86,10 @@ const App: React.FC = () => {
     if (book.issuedTo) {
       const issuedUser = users.find(u => u.libraryId === book.issuedTo);
       if (issuedUser) {
-        const updatedUser = { 
+        const updatedUser: User = { 
           ...issuedUser, 
           xp: (issuedUser.xp || 0) + 20, 
+          badges: issuedUser.badges || []
         };
         setUsers(prev => prev.map(u => u.id === issuedUser.id ? updatedUser : u));
         db.updateUser(updatedUser);
@@ -96,10 +97,10 @@ const App: React.FC = () => {
       }
     }
 
-    const updatedBook = { ...book, isAvailable: true, issuedTo: undefined, issuedDate: undefined };
+    const updatedBook: Book = { ...book, isAvailable: true, issuedTo: undefined, issuedDate: undefined };
     setBooks(prev => prev.map(b => b.id === bookId ? updatedBook : b));
     db.updateBook(updatedBook);
-    addToast("Asset returned. Stream ended.", "success");
+    addToast("Asset returned. +20 XP awarded.", "success");
   };
 
   const handleReserveBook = (bookId: string) => {
@@ -108,17 +109,17 @@ const App: React.FC = () => {
     if (!book) return;
     const waitlist = book.waitlist || [];
     if (waitlist.includes(currentUser.libraryId)) return;
-    const updatedBook = { ...book, waitlist: [...waitlist, currentUser.libraryId] };
+    const updatedBook: Book = { ...book, waitlist: [...waitlist, currentUser.libraryId] };
     setBooks(prev => prev.map(b => b.id === bookId ? updatedBook : b));
     db.updateBook(updatedBook);
     addToast(`Waitlist confirmed for ${book.title}.`, 'success');
   };
 
-  const handlePenalty = (userId: string) => {
-    const user = users.find(u => u.id === userId);
+  const handlePenalty = (libraryId: string) => {
+    const user = users.find(u => u.libraryId === libraryId);
     if (!user) return;
-    const updatedUser = { ...user, xp: Math.max(0, (user.xp || 0) - 50) };
-    setUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
+    const updatedUser: User = { ...user, xp: Math.max(0, (user.xp || 0) - 50) };
+    setUsers(prev => prev.map(u => u.id === user.id ? updatedUser : u));
     db.updateUser(updatedUser);
     addToast(`System Warning: XP deducted for ${user.name}.`, 'error');
   };
@@ -130,7 +131,7 @@ const App: React.FC = () => {
       db.saveSession(found);
       setCurrentUser(found);
       setView('DASHBOARD');
-      addToast(`System access granted. Welcome, ${found.name}.`, 'success');
+      addToast(`System access granted. Hello, ${found.name}.`, 'success');
     } else {
       addToast("Access denied. Invalid credentials.", "error");
     }
@@ -140,7 +141,7 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-[#0B0F1A] flex flex-col items-center justify-center text-white">
       <div className="w-16 h-16 border-4 border-[#5DA9E9] border-t-transparent rounded-full animate-spin mb-8"></div>
       <h1 className="text-5xl font-black tracking-tighter">VAYMN</h1>
-      <p className="text-[10px] font-black uppercase tracking-[0.5em] opacity-40 mt-4">Initializing Data Streams</p>
+      <p className="text-[10px] font-black uppercase tracking-[0.5em] opacity-40 mt-4">Initializing Streams</p>
     </div>
   );
 
@@ -223,7 +224,7 @@ const App: React.FC = () => {
             <div className="flex items-center gap-8">
               <div className="text-right">
                 <p className="text-base font-black text-[#1F2A44]">{currentUser.name}</p>
-                <p className="text-[10px] font-black uppercase text-[#5DA9E9] tracking-widest">{currentUser.role} ACCESS</p>
+                <p className="text-[10px] font-black uppercase text-[#5DA9E9] tracking-widest">{currentUser.role === 'ADMIN' ? 'Command Level' : `Level ${Math.floor((currentUser.xp || 0) / 100) + 1}`}</p>
               </div>
               <button onClick={() => setIsConfirmingLogout(true)} className="w-14 h-14 bg-red-50 text-red-500 rounded-3xl flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-sm"><i className="fas fa-power-off text-xl"></i></button>
             </div>
@@ -253,7 +254,7 @@ const App: React.FC = () => {
       )}
 
       {isConfirmingLogout && (
-        <ConfirmationModal title="Terminate Session" message="Are you sure you want to log out of VAYMN? Your current stream session will be closed." onConfirm={() => { db.saveSession(null); setCurrentUser(null); setView('HOME'); setIsConfirmingLogout(false); }} onCancel={() => setIsConfirmingLogout(false)} />
+        <ConfirmationModal title="Terminate Session" message="Confirm system logout? Your current stream state will be saved." onConfirm={() => { db.saveSession(null); setCurrentUser(null); setView('HOME'); setIsConfirmingLogout(false); }} onCancel={() => setIsConfirmingLogout(false)} />
       )}
     </div>
   );
