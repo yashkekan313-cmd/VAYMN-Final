@@ -15,7 +15,6 @@ interface Toast {
 
 const App: React.FC = () => {
   const [isInitializing, setIsInitializing] = useState(true);
-  const [isSyncing, setIsSyncing] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -27,39 +26,32 @@ const App: React.FC = () => {
   const [targetRole, setTargetRole] = useState<UserRole>('USER');
   const [isConfirmingLogout, setIsConfirmingLogout] = useState(false);
 
-  const hasApiKey = (() => {
-    const key = process.env.API_KEY;
-    return typeof key === 'string' && key.length > 5 && key !== 'undefined';
-  })();
+  const [aiOnline, setAiOnline] = useState(false);
 
   const addToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
     const id = Date.now();
     setToasts(prev => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, 4000);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
   }, []);
 
   useEffect(() => {
+    const hasKey = !!process.env.API_KEY;
+    setAiOnline(hasKey);
+
     const init = async () => {
       try {
         await db.seedIfEmpty();
-        
         const [savedUser, savedBooks, savedUsers, savedAdmins] = await Promise.all([
           db.getCurrentUser().catch(() => null),
           db.getBooks().catch(() => []),
           db.getUsers().catch(() => []),
           db.getAdmins().catch(() => [])
         ]);
-
         setCurrentUser(savedUser);
         setBooks(savedBooks || []);
         setUsers(savedUsers || []);
         setAdmins(savedAdmins || []);
-
         if (savedUser) setView('DASHBOARD');
-      } catch (err) {
-        console.error("Initialization failed:", err);
       } finally {
         setIsInitializing(false);
       }
@@ -67,225 +59,212 @@ const App: React.FC = () => {
     init();
   }, []);
 
-  const sync = async (action: () => Promise<void>, successMsg?: string) => {
-    setIsSyncing(true);
-    try {
-      await action();
-      if (successMsg) addToast(successMsg, 'success');
-    } catch (e) {
-      console.error("Sync Error:", e);
-      addToast("Local update complete.", 'info');
-    } finally {
-      setIsSyncing(false);
+  const handleIssueBook = (bookId: string) => {
+    if (!currentUser) return;
+    const book = books.find(b => b.id === bookId);
+    if (!book) return;
+    const updatedBook = { 
+      ...book, 
+      isAvailable: false, 
+      issuedTo: currentUser.libraryId,
+      issuedDate: new Date().toISOString()
+    };
+    setBooks(prev => prev.map(b => b.id === bookId ? updatedBook : b));
+    db.updateBook(updatedBook);
+    addToast(`Stream confirmed: ${book.title}. Enjoy your asset.`, 'success');
+  };
+
+  const handleReIssueBook = (bookId: string) => {
+    const book = books.find(b => b.id === bookId);
+    if (!book) return;
+    const updatedBook = { ...book, issuedDate: new Date().toISOString() };
+    setBooks(prev => prev.map(b => b.id === bookId ? updatedBook : b));
+    db.updateBook(updatedBook);
+    addToast(`Stream refreshed: ${book.title}. Loan extended.`, 'info');
+  };
+
+  const handleReturnBook = (bookId: string) => {
+    const book = books.find(b => b.id === bookId);
+    if (!book) return;
+    
+    if (book.issuedTo) {
+      const issuedUser = users.find(u => u.libraryId === book.issuedTo);
+      if (issuedUser) {
+        const updatedUser = { 
+          ...issuedUser, 
+          xp: (issuedUser.xp || 0) + 20, 
+          badges: issuedUser.badges?.includes('POWER_READER') ? issuedUser.badges : [...(issuedUser.badges || []), 'ASSET_RETURNER']
+        };
+        setUsers(prev => prev.map(u => u.id === issuedUser.id ? updatedUser : u));
+        db.updateUser(updatedUser);
+        if (currentUser?.id === issuedUser.id) setCurrentUser(updatedUser);
+      }
     }
+
+    const updatedBook = { ...book, isAvailable: true, issuedTo: undefined, issuedDate: undefined };
+    setBooks(prev => prev.map(b => b.id === bookId ? updatedBook : b));
+    db.updateBook(updatedBook);
+    addToast("Asset returned to stacks. +20 XP awarded.", "success");
+  };
+
+  // Added handleReserveBook to fix missing reference on UserDashboard
+  const handleReserveBook = (bookId: string) => {
+    if (!currentUser) return;
+    const book = books.find(b => b.id === bookId);
+    if (!book) return;
+    
+    const waitlist = book.waitlist || [];
+    if (waitlist.includes(currentUser.libraryId)) {
+      addToast("System: You are already in the queue for this stream.", "info");
+      return;
+    }
+    
+    const updatedBook = { ...book, waitlist: [...waitlist, currentUser.libraryId] };
+    setBooks(prev => prev.map(b => b.id === bookId ? updatedBook : b));
+    db.updateBook(updatedBook);
+    addToast(`Queue position secured: ${book.title}.`, 'success');
+  };
+
+  // Added handlePenalty to fix missing reference on AdminDashboard
+  const handlePenalty = (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+    const updatedUser = { ...user, xp: Math.max(0, (user.xp || 0) - 50) };
+    setUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
+    db.updateUser(updatedUser);
+    addToast(`Penalty applied: ${user.name}. -50 XP.`, 'error');
   };
 
   const handleLogin = (libraryId: string, password: string, role: UserRole) => {
     const source = role === 'ADMIN' ? admins : users;
-    const foundUser = source.find(u => u.libraryId === libraryId && u.password === password);
-    if (foundUser) {
-      sync(async () => {
-        await db.saveSession(foundUser);
-        setCurrentUser(foundUser);
-        setView('DASHBOARD');
-      }, `Welcome, ${foundUser.name}!`);
+    const found = source.find(u => u.libraryId === libraryId && u.password === password);
+    if (found) {
+      db.saveSession(found);
+      setCurrentUser(found);
+      setView('DASHBOARD');
+      addToast(`Access granted. Hello, ${found.name}.`, 'success');
     } else {
-      addToast("Invalid credentials.", "error");
+      addToast("Credentials rejected.", "error");
     }
   };
 
-  const handleSignup = (newUser: User) => {
-    sync(async () => {
-      if (newUser.role === 'ADMIN') {
-        setAdmins(prev => [...prev, newUser]);
-        await db.updateAdmin(newUser);
-      } else {
-        setUsers(prev => [...prev, newUser]);
-        await db.updateUser(newUser);
-      }
-      await db.saveSession(newUser);
-      setCurrentUser(newUser);
-      setView('DASHBOARD');
-    }, "Welcome to VAYMN!");
-  };
-
-  const handleLogout = useCallback(() => {
-    sync(async () => {
-      await db.saveSession(null);
-      setCurrentUser(null);
-      setView('HOME');
-      setIsConfirmingLogout(false);
-    }, "Signed out.");
-  }, []);
-
-  const handleIssueBook = (bookId: string) => {
-    if (!currentUser) return;
-    const bookToUpdate = books.find(b => b.id === bookId);
-    if (!bookToUpdate) return;
-    const updatedBook = { ...bookToUpdate, isAvailable: false, issuedTo: currentUser.libraryId };
-    sync(async () => {
-      setBooks(prev => prev.map(b => b.id === bookId ? updatedBook : b));
-      await db.updateBook(updatedBook);
-    }, `Checked out: ${updatedBook.title}`);
-  };
-
-  const handleReturnBook = (bookId: string) => {
-    const bookToUpdate = books.find(b => b.id === bookId);
-    if (!bookToUpdate) return;
-    const updatedBook = { ...bookToUpdate, isAvailable: true, issuedTo: undefined };
-    sync(async () => {
-      setBooks(prev => prev.map(b => b.id === bookId ? updatedBook : b));
-      await db.updateBook(updatedBook);
-    }, "Asset returned.");
-  };
-
-  const handleDeleteBook = (bookId: string) => {
-    sync(async () => {
-      setBooks(prev => prev.filter(b => b.id !== bookId));
-      await db.deleteBook(bookId);
-    }, "Asset removed.");
-  };
-
-  if (isInitializing) {
-    return (
-      <div className="min-h-screen bg-[#1F2A44] flex flex-col items-center justify-center text-white">
-        <div className="w-16 h-16 border-4 border-[#5DA9E9] border-t-transparent rounded-full animate-spin mb-6"></div>
-        <h1 className="text-4xl font-black tracking-tighter mb-2">VAYMN</h1>
-        <p className="text-[#5DA9E9] text-[10px] uppercase tracking-[0.4em] font-bold animate-pulse">Initializing Library Core...</p>
-      </div>
-    );
-  }
+  if (isInitializing) return (
+    <div className="min-h-screen bg-[#1F2A44] flex flex-col items-center justify-center text-white">
+      <div className="w-16 h-16 border-4 border-[#5DA9E9] border-t-transparent rounded-full animate-spin mb-8"></div>
+      <h1 className="text-4xl font-black tracking-tighter animate-pulse">VAYMN</h1>
+      <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-40 mt-4">Calibrating Streams</p>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-[#F7F9FC] font-sans text-[#1F2A44]">
-      {/* Toast Notifications */}
-      <div className="fixed top-6 right-6 z-[200] flex flex-col gap-3 pointer-events-none">
-        {toasts.map(toast => (
-          <div key={toast.id} className={`pointer-events-auto flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border backdrop-blur-md animate-fade-in ${
-            toast.type === 'success' ? 'bg-white border-green-500 text-green-700' : 
-            toast.type === 'error' ? 'bg-red-50 border-red-500 text-red-600' : 
-            'bg-white border-[#5DA9E9] text-[#1F2A44]'
-          }`}>
-            <i className={`fas ${toast.type === 'success' ? 'fa-check-circle text-green-500' : toast.type === 'error' ? 'fa-exclamation-circle text-red-500' : 'fa-info-circle text-[#5DA9E9]'}`}></i>
-            <span className="text-sm font-bold">{toast.message}</span>
+    <div className="min-h-screen">
+       <div className="fixed top-6 right-6 z-[300] flex flex-col gap-3">
+        {toasts.map(t => (
+          <div key={t.id} className="bg-white border-l-4 border-[#1F2A44] px-8 py-5 rounded-2xl shadow-2xl flex items-center gap-4 animate-toast border-b border-slate-100">
+             <i className={`fas ${t.type === 'success' ? 'fa-check-circle text-green-500' : 'fa-info-circle text-blue-500'}`}></i>
+             <span className="font-bold text-sm text-[#1F2A44]">{t.message}</span>
           </div>
         ))}
       </div>
 
-      {!hasApiKey ? (
-        <div className="fixed bottom-6 left-6 z-[300] bg-orange-600 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4 animate-fade-in max-w-sm">
-          <i className="fas fa-key text-xl"></i>
-          <div>
-            <p className="font-bold text-sm">AI Configuration Missing</p>
-            <p className="text-[10px] opacity-80">Add API_KEY in Vercel settings and Redeploy.</p>
-          </div>
-        </div>
-      ) : (
-        <div className="fixed bottom-6 left-6 z-[300] bg-[#1F2A44] text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-3 animate-fade-in border border-white/10 opacity-40 hover:opacity-100 transition-opacity">
-           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-           <span className="text-[9px] font-black uppercase tracking-widest">AI Core Online</span>
-        </div>
-      )}
-
       {view === 'HOME' && (
-        <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#1F2A44]">
-          <div className="relative z-10 w-full max-w-6xl px-6 py-12 flex flex-col items-center">
-            <div className="text-center mb-24 animate-fade-in">
-              <h1 className="text-8xl md:text-9xl font-black text-white mb-4 tracking-tighter">VAYMN</h1>
-              <p className="text-[#5DA9E9] tracking-[0.6em] uppercase text-xs font-black">Stream Smarter. Library Reimagined.</p>
-            </div>
+        <div className="min-h-screen data-stream-bg flex flex-col items-center justify-center px-4 relative">
+          <div className="absolute top-20 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-[#111827]/40 backdrop-blur-xl border border-white/5 px-6 py-2.5 rounded-full shadow-2xl animate-fade-in-up">
+              <div className={`w-2.5 h-2.5 rounded-full ${aiOnline ? 'bg-green-500 shadow-[0_0_12px_#22c55e] animate-pulse' : 'bg-red-500'}`}></div>
+              <span className="text-[10px] font-bold text-white/90 uppercase tracking-[0.3em] select-none font-['JetBrains_Mono']">
+                AI CORE {aiOnline ? 'ONLINE' : 'OFFLINE'}
+              </span>
+          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 w-full max-w-4xl">
-              <button 
-                onClick={() => { setTargetRole('USER'); setView('USER_LOGIN'); }} 
-                className="group bg-white/5 border border-white/10 p-12 rounded-[40px] text-left transition-all hover:bg-white/10 hover:-translate-y-2"
-              >
-                <div className="w-16 h-16 bg-[#5DA9E9] rounded-2xl flex items-center justify-center text-white mb-8 shadow-xl">
-                  <i className="fas fa-user text-2xl"></i>
-                </div>
-                <h3 className="text-3xl font-black text-white mb-2">Student Portal</h3>
-                <p className="text-white/40 text-sm font-medium">Browse and discover books.</p>
-              </button>
+          <div className="text-center mb-16 relative z-10 animate-fade-in-up">
+            <h1 className="text-8xl md:text-[11rem] font-black text-white tracking-tighter leading-none mb-6">VAYMN</h1>
+            <p className="text-[#5DA9E9] font-black text-[10px] md:text-sm tracking-[0.8em] uppercase opacity-90 drop-shadow-lg">
+              Stream Smarter. Library Reimagined.
+            </p>
+          </div>
 
-              <button 
-                onClick={() => { setTargetRole('ADMIN'); setView('ADMIN_LOGIN'); }} 
-                className="group bg-white/5 border border-white/10 p-12 rounded-[40px] text-left transition-all hover:bg-white/10 hover:-translate-y-2"
-              >
-                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-[#1F2A44] mb-8 shadow-xl">
-                  <i className="fas fa-user-shield text-2xl"></i>
-                </div>
-                <h3 className="text-3xl font-black text-white mb-2">Admin Control</h3>
-                <p className="text-white/40 text-sm font-medium">Manage assets and students.</p>
-              </button>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-5xl relative z-10">
+            <button 
+              onClick={() => { setTargetRole('USER'); setView('USER_LOGIN'); }}
+              className="bg-white/5 backdrop-blur-md border border-white/10 p-12 rounded-[56px] text-left hover:bg-white/10 hover:scale-[1.02] transition-all group flex flex-col gap-8 shadow-2xl animate-fade-in-up"
+            >
+              <div className="w-20 h-20 bg-gradient-to-tr from-[#5DA9E9] to-blue-600 rounded-[28px] flex items-center justify-center text-white text-3xl shadow-2xl group-hover:rotate-6 transition-transform duration-500">
+                <i className="fas fa-play"></i>
+              </div>
+              <div>
+                <h3 className="text-4xl font-bold text-white mb-2">Student Portal</h3>
+                <p className="text-slate-400 font-medium">Browse the stream of knowledge.</p>
+              </div>
+            </button>
+
+            <button 
+              onClick={() => { setTargetRole('ADMIN'); setView('ADMIN_LOGIN'); }}
+              className="bg-white/5 backdrop-blur-md border border-white/10 p-12 rounded-[56px] text-left hover:bg-white/10 hover:scale-[1.02] transition-all group flex flex-col gap-8 shadow-2xl animate-fade-in-up"
+              style={{ animationDelay: '0.2s' }}
+            >
+              <div className="w-20 h-20 bg-white rounded-[28px] flex items-center justify-center text-[#1F2A44] text-3xl shadow-2xl group-hover:-rotate-6 transition-transform duration-500">
+                <i className="fas fa-layer-group"></i>
+              </div>
+              <div>
+                <h3 className="text-4xl font-bold text-white mb-2">Command Center</h3>
+                <p className="text-slate-400 font-medium">Manage assets and streams.</p>
+              </div>
+            </button>
           </div>
         </div>
       )}
 
       {(view === 'USER_LOGIN' || view === 'ADMIN_LOGIN' || view === 'SIGNUP') && (
-        <AuthScreen 
-          mode={view === 'SIGNUP' ? 'SIGNUP' : 'LOGIN'} 
-          role={targetRole} 
-          onLogin={handleLogin} 
-          onSignup={handleSignup} 
-          onBackToHome={() => setView('HOME')} 
-          onToggleSignup={() => setView('SIGNUP')} 
-          onBackToLogin={() => setView(targetRole === 'ADMIN' ? 'ADMIN_LOGIN' : 'USER_LOGIN')} 
-        />
+        <AuthScreen mode={view === 'SIGNUP' ? 'SIGNUP' : 'LOGIN'} role={targetRole} onLogin={handleLogin} onSignup={u => { db.updateUser(u); setCurrentUser(u); setView('DASHBOARD'); }} onBackToHome={() => setView('HOME')} onToggleSignup={() => setView('SIGNUP')} onBackToLogin={() => setView('USER_LOGIN')} />
       )}
 
       {view === 'DASHBOARD' && currentUser && (
-        <>
-          <nav className="sticky top-0 z-[100] bg-white/80 backdrop-blur-2xl border-b border-[#E5EAF0] px-8 py-4 flex items-center justify-between shadow-sm">
-            <div className="flex items-center gap-6">
-              <span className="text-2xl font-black text-[#1F2A44] tracking-tighter cursor-pointer" onClick={() => setView('HOME')}>VAYMN</span>
-              <div className={`px-4 py-1.5 rounded-full text-[9px] font-black border flex items-center gap-2 ${
-                db.isCloudEnabled() ? 'bg-green-50 text-green-600 border-green-200' : 'bg-slate-50 text-slate-400 border-slate-200'
-              }`}>
-                <div className={`w-1.5 h-1.5 rounded-full ${db.isCloudEnabled() ? 'bg-green-500' : 'bg-slate-300'}`}></div>
-                {db.isCloudEnabled() ? 'CLOUD' : 'LOCAL'}
+        <div className="animate-fade-in-up">
+          <nav className="bg-white/80 backdrop-blur-md px-10 py-6 border-b flex justify-between items-center sticky top-0 z-[200]">
+            <div className="flex items-center gap-10">
+              <span className="text-3xl font-black tracking-tighter cursor-pointer hover:text-[#5DA9E9] transition-colors" onClick={() => setView('HOME')}>VAYMN</span>
+              <div className="hidden lg:flex items-center gap-4 bg-[#1F2A44] px-5 py-2.5 rounded-full shadow-lg border border-white/5">
+                 <div className={`w-2 h-2 rounded-full ${aiOnline ? 'bg-green-500 shadow-[0_0_8px_#22c55e] animate-pulse' : 'bg-red-500'}`}></div>
+                 <span className="text-[9px] font-bold text-white/90 uppercase tracking-[0.3em] font-['JetBrains_Mono']">
+                    AI CORE {aiOnline ? 'ONLINE' : 'OFFLINE'}
+                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-               <div className="hidden md:flex flex-col items-end">
-                  <span className="text-[10px] font-black text-[#1F2A44] uppercase tracking-wider">{currentUser.name}</span>
-                  <span className="text-[8px] font-bold text-[#5DA9E9] uppercase">{currentUser.role}</span>
-               </div>
-               <button onClick={() => setIsConfirmingLogout(true)} className="w-10 h-10 bg-red-50 text-red-500 rounded-xl flex items-center justify-center hover:bg-red-500 hover:text-white transition-all">
-                 <i className="fas fa-power-off"></i>
-               </button>
+
+            <div className="flex items-center gap-8">
+              <div className="flex flex-col items-end">
+                <span className="text-sm font-black text-[#1F2A44]">{currentUser.name}</span>
+                <span className="text-[9px] font-black uppercase text-[#5DA9E9] tracking-widest">{currentUser.role === 'ADMIN' ? 'Command Level 1' : `Reader Level ${Math.floor((currentUser.xp || 0) / 100) + 1}`}</span>
+              </div>
+              <button onClick={() => setIsConfirmingLogout(true)} className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-red-500 hover:bg-red-50 transition-all"><i className="fas fa-power-off"></i></button>
             </div>
           </nav>
-
-          <main className="p-6 md:p-12 max-w-[1440px] mx-auto animate-fade-in">
+          
+          <main className="max-w-[1600px] mx-auto p-10">
             {currentUser.role === 'USER' ? (
-              <UserDashboard user={currentUser} books={books} onIssueBook={handleIssueBook} onGoHome={() => setView('HOME')} />
+              <UserDashboard user={currentUser} books={books} onIssueBook={handleIssueBook} onReIssueBook={handleReIssueBook} onReserveBook={handleReserveBook} onGoHome={() => setView('HOME')} />
             ) : (
               <AdminDashboard 
                 admin={currentUser} books={books} users={users} admins={admins}
                 setBooks={setBooks} setUsers={setUsers} setAdmins={setAdmins}
-                onDeleteBook={handleDeleteBook}
-                onDeleteUser={id => sync(async () => { setUsers(u => u.filter(x => x.id !== id)); await db.deleteUser(id); }, "Removed.")}
-                onDeleteAdmin={id => sync(async () => { setAdmins(a => a.filter(x => x.id !== id)); await db.deleteAdmin(id); }, "Removed.")}
-                onUpdateUser={u => sync(async () => { setUsers(prev => prev.map(x => x.id === u.id ? u : x)); await db.updateUser(u); }, "Updated.")}
-                onUpdateAdmin={a => sync(async () => { setAdmins(prev => prev.map(x => x.id === a.id ? a : x)); await db.updateAdmin(a); }, "Updated.")}
-                onAddUser={u => sync(async () => { setUsers(p => [...p, u]); await db.updateUser(u); }, "Registered.")}
-                onAddAdmin={a => sync(async () => { setAdmins(p => [...p, a]); await db.updateAdmin(a); }, "Registered.")}
+                onDeleteBook={id => { setBooks(b => b.filter(x => x.id !== id)); db.deleteBook(id); }}
+                onDeleteUser={id => { setUsers(u => u.filter(x => x.id !== id)); db.deleteUser(id); }}
+                onDeleteAdmin={id => { setAdmins(a => a.filter(x => x.id !== id)); db.deleteAdmin(id); }}
+                onUpdateUser={u => { setUsers(prev => prev.map(x => x.id === u.id ? u : x)); db.updateUser(u); }}
+                onUpdateAdmin={a => { setAdmins(prev => prev.map(x => x.id === a.id ? a : x)); db.updateAdmin(a); }}
+                onAddUser={u => { setUsers(p => [...p, u]); db.updateUser(u); }}
+                onAddAdmin={a => { setAdmins(p => [...p, a]); db.updateAdmin(a); }}
                 onReturnBook={handleReturnBook}
+                onPenalty={handlePenalty}
                 onGoHome={() => setView('HOME')}
               />
             )}
           </main>
-        </>
+        </div>
       )}
 
       {isConfirmingLogout && (
-        <ConfirmationModal 
-          title="Sign Out" 
-          message="End your current session?" 
-          onConfirm={handleLogout} 
-          onCancel={() => setIsConfirmingLogout(false)} 
-        />
+        <ConfirmationModal title="End Session" message="Confirm system logout? Your current stream state will be saved." onConfirm={() => { db.saveSession(null); setCurrentUser(null); setView('HOME'); setIsConfirmingLogout(false); }} onCancel={() => setIsConfirmingLogout(false)} />
       )}
     </div>
   );
